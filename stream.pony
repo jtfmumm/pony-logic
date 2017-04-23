@@ -17,6 +17,9 @@ primitive SNil[A: Any val]
     this
 
   fun size(): USize =>
+    """
+    It's unwise to call size() on an infinite stream
+    """
     0
 
   fun is_empty(): Bool =>
@@ -80,12 +83,15 @@ primitive SNil[A: Any val]
     ")"
 
 trait val SNext[A: Any val]
+  // In order to implement an SNext, you only need an implementation
+  // of mature()
   fun mature(): (A, Stream[A]) ?
 
   fun val force(): Stream[A] val =>
     try
       // This weird line is because the compiler doesn't see the mature()
       // line as possibly raising an error when wrapped in a try block
+      // TODO: Address and remove
       if false then error end
 
       (let h: A, let t: Stream[A] val) = mature()
@@ -95,6 +101,9 @@ trait val SNext[A: Any val]
     end
 
   fun val size(): USize =>
+    """
+    It's unwise to call size() on an infinite stream
+    """
     force().size()
 
   fun is_empty(): Bool =>
@@ -121,6 +130,9 @@ trait val SNext[A: Any val]
     """
     mature()._2
 
+  // TODO: Determine why compiler refuses to accept this use of
+  // type parameter B: Any val on SNext (but not SCons) for map and
+  // flat_map.
   // fun val map[B: Any val](f: {(A): B} val): SMap[A, B] val =>
   //   match force()
   //   | let cons: SCons[A] val => cons.map[B](f)
@@ -223,6 +235,9 @@ class val SCons[A: Any val]
     this
 
   fun size(): USize =>
+    """
+    It's unwise to call size() on an infinite stream
+    """
     1 + _tail.size()
 
   fun is_empty(): Bool =>
@@ -346,6 +361,9 @@ primitive Streams[A: Any val]
 // SNext implementations
 //////////////////////////
 class SMerge[A: Any val] is SNext[A]
+  """
+  Interleave two streams
+  """
   let _l: Stream[A] val
   let _r: Stream[A] val
 
