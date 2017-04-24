@@ -125,6 +125,7 @@ primitive MK
   fun unit(s: State val): Stream[State val] val =>
     SCons[State val](s, mzero())
 
+  // ===
   fun u_u(u: Term val, v: Term val): Goal val =>
     let mk = MK
     recover
