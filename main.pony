@@ -14,6 +14,7 @@ actor Main
             }
           end)(mk.empty_state())
       @printf[I32]("%s\n".cstring(), res.string().cstring())
+      // Stream((( (#(0) . 5)) . 1))
 
       @printf[I32]("\nSimple === (where it fails)\n".cstring())
       let v1 = Var(0)
@@ -21,6 +22,7 @@ actor Main
       let res01: Stream[State val] val =
         mk.u_u(v1, "5")(state)
       @printf[I32]("%s\n".cstring(), res01.string().cstring())
+      // Stream()
 
       @printf[I32]("\nConj\n".cstring())
       let res2 =
@@ -40,6 +42,7 @@ actor Main
               }
             end))(mk.empty_state())
       @printf[I32]("%s\n".cstring(), res2.string().cstring())
+      // Stream((( (#(1) . 5) (#(0) . 7)) . 2), (( (#(1) . 6) (#(0) . 7)) . 2))
 
       @printf[I32]("\nDisj\n".cstring())
       let res3 =
@@ -52,12 +55,13 @@ actor Main
             }
           end)(mk.empty_state())
       @printf[I32]("%s\n".cstring(), res3.string().cstring())
-      @printf[I32]("%lu\n".cstring(), res3.size())
+      // Stream((( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1))
 
       @printf[I32]("\nInfinite (take 20)\n".cstring())
       let res4 =
         MK.call_fresh(Fives)(mk.empty_state()).take(20)
       @printf[I32]("%s\n".cstring(), res4.string().cstring())
+      // Stream((( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1))
 
       @printf[I32]("\nInifinite (take 20) 2\n".cstring())
       let fives = Repeater("5")
@@ -73,6 +77,7 @@ actor Main
           end)(mk.empty_state()).take(20)
 
       @printf[I32]("%s\n".cstring(), res5.string().cstring())
+      // Stream((( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1))
 
       @printf[I32]("\nCheck against disj\n".cstring())
       let res6 =
@@ -89,7 +94,7 @@ actor Main
           end)(mk.empty_state())
 
       @printf[I32]("%s\n".cstring(), res6.string().cstring())
-      @printf[I32]("%lu\n".cstring(), res6.size())
+      // Stream((( (#(0) . 5)) . 1))
 
       @printf[I32]("\nConso\n".cstring())
       let res7 =
@@ -102,6 +107,7 @@ actor Main
           end)(mk.empty_state())
 
       @printf[I32]("%s\n".cstring(), res7.string().cstring())
+      // Stream((( (#(0) . (a . (b . (c . ))))) . 1))
 
       @printf[I32]("\nConso2\n".cstring())
       let res8 =
@@ -114,6 +120,7 @@ actor Main
           end)(mk.empty_state())
 
       @printf[I32]("%s\n".cstring(), res8.string().cstring())
+      // Stream((( (#(0) . a)) . 1))
 
       @printf[I32]("\nConso3\n".cstring())
       let res9 =
@@ -126,7 +133,7 @@ actor Main
           end)(mk.empty_state())
 
       @printf[I32]("%s\n".cstring(), res9.string().cstring())
-
+      // Stream((( (#(2) . (#(0) . #(1)))) . 3))
 
       @printf[I32]("\nRelation\n".cstring())
       let res10 =
@@ -140,6 +147,21 @@ actor Main
         )(mk.empty_state()).take(10)
 
       @printf[I32]("%s\n".cstring(), res10.string().cstring())
+      // Stream((( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . US)) . 3))
+
+      @printf[I32]("\nRelation2\n".cstring())
+      let res11 =
+        MK.call_fresh(
+          recover
+            {
+              (q: Var val): Goal val =>
+                Relations.located_in(q, "US")
+            }
+          end
+        )(mk.empty_state()).take(10)
+
+      @printf[I32]("%s\n".cstring(), res11.string().cstring())
+      // Stream((( (#(0) . WA)) . 3), (( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . Bronx)) . 3), (( (#(1) . WA) (#(0) . Seattle)) . 3))
 
 primitive Relations
   fun _located_in(t1: Term val, t2: Term val): Goal val =>
