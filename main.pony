@@ -4,31 +4,7 @@ actor Main
     run()
 
   fun run() =>
-    // try
-      // @printf[I32]("Ones:\n".cstring())
-      // let ones = Ones
-      // let first_ten = ones.take(1000)
-      // @printf[I32]("%s\n".cstring(), first_ten.string().cstring())
-
-      // @printf[I32]("\nNaturals:\n".cstring())
-      // let natural = U8s
-      // let first_ten_nats = natural.take(10).reverse()
-      // @printf[I32]("%s\n".cstring(), first_ten_nats.string().cstring())
-
-      // @printf[I32]("\nMerged Evens and Odds:\n".cstring())
-      // let merge = SMerge[U8](Evens, Odds)
-      // let first_ten_merged = merge.take(20).reverse()
-      // @printf[I32]("%s\n".cstring(), first_ten_merged.string().cstring())
-
-      // @printf[I32]("\nMerge/filter/map:\n".cstring())
-      // let merge =
-      //   Streams[U8].map[String]({(u: U8): String => (u * 2).string()},
-      //     Evens.merge(Odds).filter({(u: U8): Bool => (u % 3) == 0}).take(50))
-      // let first_ten_merge_filter_map = merge.take(50)
-      // @printf[I32]("%s\n".cstring(), first_ten_merge_filter_map.string()
-      //   .cstring())
-
-      @printf[I32]("Unify\n".cstring())
+      @printf[I32]("\nSimple ===\n".cstring())
       let mk = MK
       let res: Stream[State val] val =
         MK.call_fresh(
@@ -39,14 +15,14 @@ actor Main
           end)(mk.empty_state())
       @printf[I32]("%s\n".cstring(), res.string().cstring())
 
-      @printf[I32]("Unify2\n".cstring())
+      @printf[I32]("\nSimple === (where it fails)\n".cstring())
       let v1 = Var(0)
       let state = State(SubstEnv().add(v1, "6"), 1)
       let res01: Stream[State val] val =
         mk.u_u(v1, "5")(state)
       @printf[I32]("%s\n".cstring(), res01.string().cstring())
 
-      @printf[I32]("Conj\n".cstring())
+      @printf[I32]("\nConj\n".cstring())
       let res2 =
         MK.conj(
           MK.call_fresh(
@@ -64,9 +40,8 @@ actor Main
               }
             end))(mk.empty_state())
       @printf[I32]("%s\n".cstring(), res2.string().cstring())
-      @printf[I32]("%lu\n".cstring(), res2.size())
 
-      @printf[I32]("Disj\n".cstring())
+      @printf[I32]("\nDisj\n".cstring())
       let res3 =
         MK.call_fresh(
           recover
@@ -79,12 +54,12 @@ actor Main
       @printf[I32]("%s\n".cstring(), res3.string().cstring())
       @printf[I32]("%lu\n".cstring(), res3.size())
 
-      @printf[I32]("Infinite\n".cstring())
+      @printf[I32]("\nInfinite (take 20)\n".cstring())
       let res4 =
         MK.call_fresh(Fives)(mk.empty_state()).take(20)
       @printf[I32]("%s\n".cstring(), res4.string().cstring())
-      @printf[I32]("%lu\n".cstring(), res4.size())
 
+      @printf[I32]("\nInifinite (take 20) 2\n".cstring())
       let fives = Repeater("5")
       let sixes = Repeater("6")
       let res5 =
@@ -98,9 +73,8 @@ actor Main
           end)(mk.empty_state()).take(20)
 
       @printf[I32]("%s\n".cstring(), res5.string().cstring())
-      @printf[I32]("%lu\n".cstring(), res5.size())
 
-      @printf[I32]("Find\n".cstring())
+      @printf[I32]("\nCheck against disj\n".cstring())
       let res6 =
         MK.call_fresh(
           recover
@@ -117,7 +91,7 @@ actor Main
       @printf[I32]("%s\n".cstring(), res6.string().cstring())
       @printf[I32]("%lu\n".cstring(), res6.size())
 
-      @printf[I32]("Conso\n".cstring())
+      @printf[I32]("\nConso\n".cstring())
       let res7 =
         MK.call_fresh(
           recover
@@ -129,7 +103,7 @@ actor Main
 
       @printf[I32]("%s\n".cstring(), res7.string().cstring())
 
-      @printf[I32]("Conso2\n".cstring())
+      @printf[I32]("\nConso2\n".cstring())
       let res8 =
         MK.call_fresh(
           recover
@@ -141,27 +115,56 @@ actor Main
 
       @printf[I32]("%s\n".cstring(), res8.string().cstring())
 
-      @printf[I32]("Conso3\n".cstring())
+      @printf[I32]("\nConso3\n".cstring())
       let res9 =
-        MK.call_fresh(
+        MK.fresh3(
           recover
             {
-              (q1: Var val)(mk): Goal val => mk.call_fresh(
-                recover {
-                  (q2: Var val)(mk, q1): Goal val => mk.call_fresh(
-                    recover {
-                      (q3: Var val)(mk, q1, q2): Goal val =>
-                        mk.conso(q1, q2, q3)
-                    } end)
-                } end)
+              (q1: Var val, q2: Var val, q3: Var val)(mk): Goal val =>
+                mk.conso(q1, q2, q3)
             }
           end)(mk.empty_state())
 
       @printf[I32]("%s\n".cstring(), res9.string().cstring())
 
-    // else
-    //   @printf[I32]("Something went wrong!\n".cstring())
-    // end
+
+      @printf[I32]("\nRelation\n".cstring())
+      let res10 =
+        MK.call_fresh(
+          recover
+            {
+              (q: Var val): Goal val =>
+                Relations.located_in("Bronx", q)
+            }
+          end
+        )(mk.empty_state()).take(10)
+
+      @printf[I32]("%s\n".cstring(), res10.string().cstring())
+
+primitive Relations
+  fun _located_in(t1: Term val, t2: Term val): Goal val =>
+    MK.conde([
+      [MK.u_u("Bronx", t1); MK.u_u("NY", t2)]
+      [MK.u_u("Seattle", t1); MK.u_u("WA", t2)]
+      [MK.u_u("WA", t1); MK.u_u("US", t2)]
+      [MK.u_u("NY", t1); MK.u_u("US", t2)]
+      [MK.u_u("US", t1); MK.u_u("Earth", t2)]
+    ])
+
+  fun located_in(t1: Term val, t2: Term val): Goal val =>
+    let mk = MK
+    let relations = Relations
+    MK.fresh2(
+      recover
+        {
+          (q1: Var val, q2: Var val)(mk, relations): Goal val =>
+            mk.conde([
+              [relations._located_in(t1, t2)]
+              [relations._located_in(t1, q1); relations._located_in(q1, t2)]
+            ])
+        }
+      end
+    )
 
 primitive Fives
   fun apply(x: Var val): Goal val =>

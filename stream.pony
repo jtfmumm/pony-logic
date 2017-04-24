@@ -411,26 +411,18 @@ class SMap[A: Any val, B: Any val] is SNext[B]
 class SFlatMap[A: Any val, B: Any val] is SNext[B]
   let _f: {(A): Stream[B] val} val
   let _s: Stream[A] val
-  let _lead_stream: Stream[B] val
 
-  new val create(f: {(A): Stream[B] val} val, s: Stream[A] val,
-    lead_stream: Stream[B] val = SNil[B]) =>
+  new val create(f: {(A): Stream[B] val} val, s: Stream[A] val) =>
     _f = f
     _s = s
-    _lead_stream = lead_stream.force()
 
   fun mature(): (B, Stream[B] val) ? =>
-    match _lead_stream
-    | let cons: SCons[B] val =>
-      (cons.head(), SFlatMap[A, B](_f, _s, cons.tail()))
+    match _s.force()
+    | let cons: SCons[A] val =>
+      let next = _f(cons.head()).force()
+      (next.head(), SFlatMap[A, B](_f, cons.tail()).merge(next.tail()))
     else
-      let next = _s.force()
-      match _f(next.head()).force()
-      | let cons: SCons[B] val =>
-        (cons.head(), SFlatMap[A, B](_f, next.tail(), cons.tail()))
-      else
-        SFlatMap[A, B](_f, next.tail(), SNil[B]).mature()
-      end
+      error
     end
 
 class SFilter[A: Any val] is SNext[A]
