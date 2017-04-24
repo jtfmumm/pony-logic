@@ -1,5 +1,5 @@
 
-interface Printable
+interface val Printable
   fun string(): String
 
 
@@ -13,7 +13,7 @@ primitive SNil[A: Any val]
   fun mature(): (A, Stream[A]) ? =>
     error
 
-  fun val force(): Stream[A] val =>
+  fun val force(): Stream[A] =>
     this
 
   fun size(): USize =>
@@ -22,7 +22,7 @@ primitive SNil[A: Any val]
     """
     0
 
-  fun is_empty(): Bool =>
+  fun empty(): Bool =>
     """
     Returns a Bool indicating if the stream is empty.
     """
@@ -52,13 +52,13 @@ primitive SNil[A: Any val]
   fun val flat_map[B: Any val](f: {(A): Stream[B] val} val): Stream[B] val =>
     SNil[B]
 
-  fun val filter(pred: {(A): Bool} val): Stream[A] val =>
+  fun val filter(pred: {(A): Bool} val): Stream[A] =>
     SNil[A]
 
-  fun val merge(s2: Stream[A] val): Stream[A] val =>
+  fun val merge(s2: Stream[A]): Stream[A] =>
     s2
 
-  fun val delay(): Stream[A] val =>
+  fun val delay(): Stream[A] =>
     SNil[A]
 
   fun val reverse(): SNil[A] =>
@@ -87,14 +87,14 @@ trait val SNext[A: Any val]
   // of mature()
   fun mature(): (A, Stream[A]) ?
 
-  fun val force(): Stream[A] val =>
+  fun val force(): Stream[A] =>
     try
       // This weird line is because the compiler doesn't see the mature()
       // line as possibly raising an error when wrapped in a try block
       // TODO: Address and remove
       if false then error end
 
-      (let h: A, let t: Stream[A] val) = mature()
+      (let h: A, let t: Stream[A]) = mature()
       SCons[A](h, t)
     else
       SNil[A]
@@ -106,7 +106,7 @@ trait val SNext[A: Any val]
     """
     force().size()
 
-  fun is_empty(): Bool =>
+  fun empty(): Bool =>
     """
     Returns a Bool indicating if the stream is empty.
     """
@@ -135,7 +135,7 @@ trait val SNext[A: Any val]
   // flat_map.
   // fun val map[B: Any val](f: {(A): B} val): SMap[A, B] val =>
   //   match force()
-  //   | let cons: SCons[A] val => cons.map[B](f)
+  //   | let cons: SCons[A] => cons.map[B](f)
   //   else
   //     SNil[A].map[B](f)
   //   end
@@ -145,18 +145,18 @@ trait val SNext[A: Any val]
   // =>
   //   force().flat_map[B](f)
 
-  fun val filter(pred: {(A): Bool} val): Stream[A] val =>
+  fun val filter(pred: {(A): Bool} val): Stream[A] =>
     SFilter[A](pred, this)
 
-  fun val merge(s2: Stream[A] val): Stream[A] val =>
+  fun val merge(s2: Stream[A]): Stream[A] =>
     SMerge[A](this, s2)
 
-  fun val delay(): Stream[A] val =>
+  fun val delay(): Stream[A] =>
     force().delay()
     //TODO: Determine why compiler thinks self is not of type Stream[A] and
     // replace the force() line with these:
     // let self = this
-    // SDelay[A](recover {()(self): Stream[A] val => self} end)
+    // SDelay[A](recover {()(self): Stream[A] => self} end)
 
   fun val reverse(): Stream[A] =>
     """
@@ -179,7 +179,7 @@ trait val SNext[A: Any val]
   fun string(): String =>
     try
       match head()
-      | let str: Printable val =>
+      | let str: Printable =>
         try
           "Stream(" + str.string() + tail()._string()
         else
@@ -199,7 +199,7 @@ trait val SNext[A: Any val]
   fun _string(): String =>
     try
       match head()
-      | let str: Printable val =>
+      | let str: Printable =>
         try
           ", " + str.string() + tail()._string()
         else
@@ -222,16 +222,16 @@ class val SCons[A: Any val]
   """
 
   let _head: A
-  let _tail: Stream[A] val
+  let _tail: Stream[A]
 
-  new val create(h: A, t: Stream[A] val) =>
+  new val create(h: A, t: Stream[A]) =>
     _head = h
     _tail = t
 
-  fun mature(): (A, Stream[A] val) =>
+  fun mature(): (A, Stream[A]) =>
     (_head, _tail)
 
-  fun val force(): Stream[A] val =>
+  fun val force(): Stream[A] =>
     this
 
   fun size(): USize =>
@@ -240,7 +240,7 @@ class val SCons[A: Any val]
     """
     1 + _tail.size()
 
-  fun is_empty(): Bool =>
+  fun empty(): Bool =>
     """
     Returns a Bool indicating if the stream is empty.
     """
@@ -270,15 +270,15 @@ class val SCons[A: Any val]
   fun val flat_map[B: Any val](f: {(A): Stream[B] val} val): Stream[B] val =>
     SFlatMap[A, B](f, this)
 
-  fun val filter(pred: {(A): Bool} val): Stream[A] val =>
+  fun val filter(pred: {(A): Bool} val): Stream[A] =>
     SFilter[A](pred, this)
 
-  fun val merge(s2: Stream[A] val): Stream[A] val =>
+  fun val merge(s2: Stream[A]): Stream[A] =>
     SMerge[A](this, s2)
 
-  fun val delay(): Stream[A] val =>
+  fun val delay(): Stream[A] =>
     let self = this
-    SDelay[A](recover {()(self): Stream[A] val => self} end)
+    SDelay[A](recover {()(self): Stream[A] => self} end)
 
   fun val reverse(): Stream[A] =>
     """
@@ -300,7 +300,7 @@ class val SCons[A: Any val]
 
   fun string(): String =>
     match head()
-    | let str: Printable val =>
+    | let str: Printable =>
       "Stream(" + str.string() + tail()._string()
     else
       "Stream(" + "?" + tail()._string()
@@ -308,7 +308,7 @@ class val SCons[A: Any val]
 
   fun _string(): String =>
     match head()
-    | let str: Printable val =>
+    | let str: Printable =>
       ", " + str.string() + tail()._string()
     else
       ", " + "?" + tail()._string()
@@ -323,7 +323,7 @@ primitive Streams[A: Any val]
     Private helper for reverse, recursively working on elements.
     """
     match l.force()
-    | let cons: SCons[A] val => _reverse(cons.tail(), acc.prepend(cons.head()))
+    | let cons: SCons[A] => _reverse(cons.tail(), acc.prepend(cons.head()))
     else
       acc
     end
@@ -337,7 +337,7 @@ primitive Streams[A: Any val]
     var res: Stream[A] = SNil[A]
     while(count > 0) do
       match cur.force()
-      | let cons: SCons[A] val =>
+      | let cons: SCons[A] =>
         res = res.prepend(cons.head())
         cur = cons.tail()
       else
@@ -348,11 +348,11 @@ primitive Streams[A: Any val]
     res.reverse()
 
   // TODO: Remove this once compiler type issues are resolved above for SNext
-  fun val map[B: Any val](f: {(A): B} val, s: Stream[A] val): Stream[B] val =>
+  fun val map[B: Any val](f: {(A): B} val, s: Stream[A]): Stream[B] val =>
     SMap[A, B](f, s)
 
   // TODO: Remove this once compiler type issues are resolved above for SNext
-  fun val flat_map[B: Any val](f: {(A): Stream[B] val} val, s: Stream[A] val):
+  fun val flat_map[B: Any val](f: {(A): Stream[B] val} val, s: Stream[A]):
     Stream[B] val
   =>
     SFlatMap[A, B](f, s)
@@ -360,80 +360,80 @@ primitive Streams[A: Any val]
 //////////////////////////
 // SNext implementations
 //////////////////////////
-class SMerge[A: Any val] is SNext[A]
+class val SMerge[A: Any val] is SNext[A]
   """
   Interleave two streams
   """
-  let _l: Stream[A] val
-  let _r: Stream[A] val
+  let _l: Stream[A]
+  let _r: Stream[A]
 
-  new val create(l: Stream[A] val, r: Stream[A] val) =>
+  new val create(l: Stream[A], r: Stream[A]) =>
     _l = l
     _r = r
 
-  fun mature(): (A, Stream[A] val) ? =>
+  fun mature(): (A, Stream[A]) ? =>
     match (_l, _r)
-    | (let l: SNil[A] val, _) => _r.mature()
-    | (_, let r: SNil[A] val) => _l.mature()
+    | (let l: SNil[A], _) => _r.mature()
+    | (_, let r: SNil[A]) => _l.mature()
     else
-      (let h: A, let t: Stream[A] val) = _l.mature()
+      (let h: A, let t: Stream[A]) = _l.mature()
       (h, SMerge[A](_r, t))
     end
 
-class SDelay[A: Any val] is SNext[A]
-  let _s: {(): Stream[A] val} val
+class val SDelay[A: Any val] is SNext[A]
+  let _s: {(): Stream[A]} val
 
-  new val create(s: {(): Stream[A] val} val) =>
+  new val create(s: {(): Stream[A]} val) =>
     _s = s
 
-  fun mature(): (A, Stream[A] val) ? =>
+  fun mature(): (A, Stream[A]) ? =>
     let next = _s().force()
-    (next.head(), SDelay[A](recover {()(next): Stream[A] val =>
+    (next.head(), SDelay[A](recover {()(next): Stream[A] =>
       try next.tail() else SNil[A] end}
     end))
 
-class SMap[A: Any val, B: Any val] is SNext[B]
+class val SMap[A: Any val, B: Any val] is SNext[B]
   let _f: {(A): B} val
-  let _s: Stream[A] val
+  let _s: Stream[A]
 
-  new val create(f: {(A): B} val, s: Stream[A] val) =>
+  new val create(f: {(A): B} val, s: Stream[A]) =>
     _f = f
     _s = s
 
   fun mature(): (B, Stream[B] val) ? =>
     match _s.force()
-    | let cons: SCons[A] val =>
+    | let cons: SCons[A] =>
       (_f(cons.head()), SMap[A, B](_f, cons.tail()))
     else
       error
     end
 
-class SFlatMap[A: Any val, B: Any val] is SNext[B]
+class val SFlatMap[A: Any val, B: Any val] is SNext[B]
   let _f: {(A): Stream[B] val} val
-  let _s: Stream[A] val
+  let _s: Stream[A]
 
-  new val create(f: {(A): Stream[B] val} val, s: Stream[A] val) =>
+  new val create(f: {(A): Stream[B] val} val, s: Stream[A]) =>
     _f = f
     _s = s
 
   fun mature(): (B, Stream[B] val) ? =>
     match _s.force()
-    | let cons: SCons[A] val =>
+    | let cons: SCons[A] =>
       let next = _f(cons.head()).force()
       (next.head(), SFlatMap[A, B](_f, cons.tail()).merge(next.tail()))
     else
       error
     end
 
-class SFilter[A: Any val] is SNext[A]
+class val SFilter[A: Any val] is SNext[A]
   let _pred: {(A): Bool} val
-  let _s: Stream[A] val
+  let _s: Stream[A]
 
-  new val create(pred: {(A): Bool} val, s: Stream[A] val) =>
+  new val create(pred: {(A): Bool} val, s: Stream[A]) =>
     _pred = pred
     _s = s
 
-  fun mature(): (A, Stream[A] val) ? =>
+  fun mature(): (A, Stream[A]) ? =>
     let s = _s.force()
     if _pred(s.head()) then
       (s.head(), SFilter[A](_pred, s.tail()))
