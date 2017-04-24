@@ -60,6 +60,7 @@ class SubstEnv
   fun string(): String =>
     var str = ""
     for (v, t) in _s.pairs() do
+      // USize.max_value() is used to record a #t (this is a hack)
       if not (v.id == USize.max_value()) then
         str = str + " (" + v.string() + " . " + t.string() + ")"
       end
