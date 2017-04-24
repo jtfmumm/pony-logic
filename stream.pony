@@ -34,7 +34,7 @@ primitive SNil[A: Any val]
     """
     false
 
-  fun head(): val->A ? =>
+  fun head(): A ? =>
     """
     Returns an error, since Nil has no head.
     """
@@ -67,7 +67,7 @@ primitive SNil[A: Any val]
     """
     this
 
-  fun val prepend(a: val->A): SCons[A] =>
+  fun val prepend(a: A): SCons[A] =>
     SCons[A](a, this)
 
   fun take(n: USize): SNil[A] =>
@@ -118,7 +118,7 @@ trait val SNext[A: Any val]
     """
     true
 
-  fun head(): val->A ? =>
+  fun head(): A ? =>
     """
     Returns the head of the stream.
     """
@@ -164,7 +164,7 @@ trait val SNext[A: Any val]
     """
     Streams[A].reverse(this)
 
-  fun val prepend(a: val->A): SCons[A] =>
+  fun val prepend(a: A): SCons[A] =>
     """
     Builds a new stream with an element added to the front of this stream.
     """
@@ -252,7 +252,7 @@ class val SCons[A: Any val]
     """
     true
 
-  fun head(): val->A =>
+  fun head(): A =>
     """
     Returns the head of the stream.
     """
@@ -286,7 +286,7 @@ class val SCons[A: Any val]
     """
     Streams[A].reverse(this)
 
-  fun val prepend(a: val->A): SCons[A] =>
+  fun val prepend(a: A): SCons[A] =>
     """
     Builds a new stream with an element added to the front of this stream.
     """

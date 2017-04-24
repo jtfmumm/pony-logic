@@ -7,7 +7,7 @@ type Term is (Value | Var | Pair)
 class val Var is Equatable[Var]
   let id: USize
   new val create(id': USize) => id = id'
-  fun eq(that: box->Var): Bool => id == that.id
+  fun eq(that: Var): Bool => id == that.id
   fun string(): String => "#(" + id.string() + ")"
   fun hash(): U64 => id.hash()
 
@@ -51,11 +51,9 @@ class val SubstEnv
   =>
     _s = mp
 
-  fun is_empty(): Bool =>
-    _s.size() == 0
-
-  fun add(v: Var, t: Term): SubstEnv =>
-    SubstEnv(_s.update(v, t))
+  fun empty(): Bool => _s.size() == 0
+  fun add(v: Var, t: Term): SubstEnv => SubstEnv(_s.update(v, t))
+  fun apply(v: Var): Term => _s.get_or_else(v, v)
 
   fun string(): String =>
     var str = ""
@@ -67,14 +65,11 @@ class val SubstEnv
     end
     str
 
-  fun substitute(v: Var): Term =>
-    _s.get_or_else(v, v)
-
 class val State
   let subst_env: SubstEnv
   let next_var_id: USize
 
-  new val create(s: SubstEnv, next_v_id: USize = 0) =>
+  new val create(s: SubstEnv = SubstEnv, next_v_id: USize = 0) =>
     subst_env = s
     next_var_id = next_v_id
 
@@ -84,14 +79,11 @@ class val State
 primitive MK
   fun walk(t: Term, s: SubstEnv): Term =>
     match t
-    | let v: Var =>
-      s.substitute(v)
-    else
-      t
-    end
+    | let v: Var => s(v)
+    else t end
 
   fun ext_s(v: Var, t: Term, s: SubstEnv): SubstEnv =>
-    s.add(v, t)
+    s + (v, t)
 
   fun unify(u: Term, v: Term, s: SubstEnv): SubstEnv
   =>
@@ -106,7 +98,7 @@ primitive MK
       unify(p1.snd, p2.snd, s')
     | (let x: Value, let y: Value) if x == y =>
       // A hack to record #t
-      s.add(Var(USize.max_value()), "#t")
+      s + (Var(USize.max_value()), "#t")
     else
       SubstEnv
     end
@@ -119,16 +111,14 @@ primitive MK
 
   // ===
   fun u_u(u: Term, v: Term): Goal =>
-    let mk = MK
-    recover
-      {(sc: State)(mk, u, v): Stream[State] =>
-        let s = mk.unify(u, v, sc.subst_env)
-        if s.is_empty() then
-          mk.mzero()
+    object val is Goal
+      fun apply(sc: State): Stream[State] =>
+        let s = MK.unify(u, v, sc.subst_env)
+        if s.empty() then
+          MK.mzero()
         else
-          mk.unit(State(s, sc.next_var_id))
+          MK.unit(State(s, sc.next_var_id))
         end
-      }
     end
 
   fun call_fresh(f: GoalConstructor): Goal =>
@@ -165,82 +155,34 @@ primitive MK
       mzero()
     end
 
+  // We don't need to call disj and conj directly since
+  // or and and have default implementations on the Goal trait.
   fun disj(g1: Goal, g2: Goal): Goal =>
-    let mk = MK
-    recover
-      {(sc: State)(mk): Stream[State] =>
-        mk.mplus(g1(sc), g2(sc))
-      }
+    object val is Goal
+      fun apply(sc: State): Stream[State] =>
+        MK.mplus(g1(sc), g2(sc))
     end
 
   fun conj(g1: Goal, g2: Goal): Goal =>
-    let mk = MK
-    recover
-      {(sc: State)(mk): Stream[State] =>
-        mk.bind(g1(sc), g2)
-      }
+    object val is Goal
+      fun apply(sc: State): Stream[State] =>
+        MK.bind(g1(sc), g2)
     end
 
-  fun disjs(gs: ReadSeq[Goal]): Goal =>
-    let mk = MK
-    try
-      match gs.size()
-      | 0 => empty_goal()
-      | 1 => gs(0)
-      | 2 => disj(gs(0), gs(1))
-      | let n: USize =>
-        var count = n - 2
-        let last_g = gs(n)
-        let penultimate_g = gs(n - 1)
-        var goal: Goal =
-          recover
-            {(sc: State)(mk, last_g, penultimate_g): Stream[State] =>
-              mk.mplus(last_g(sc), penultimate_g(sc))
-            }
-          end
-        while count > 0 do
-          goal = disj(gs(count), goal)
-          count = count -1
-        end
-        goal
-      else
-        empty_goal()
-      end
-    else
-      empty_goal()
-    end
+  fun conso(a: Term, b: Term, c: Term): Goal =>
+    u_u(Pair(a, b), c)
 
-  fun conjs(gs: ReadSeq[Goal]): Goal =>
-    let mk = MK
-    try
-      match gs.size()
-      | 0 => empty_goal()
-      | 1 => gs(0)
-      | 2 => conj(gs(0), gs(1))
-      | let n: USize =>
-        var count = n - 2
-        let last_g = gs(n)
-        let penultimate_g = gs(n - 1)
-        var goal: Goal =
-          recover
-            {(sc: State)(mk, last_g, penultimate_g): Stream[State] =>
-              mk.bind(last_g(sc), penultimate_g)
-            }
-          end
-        while count > 0 do
-          goal = conj(gs(count), goal)
-          count = count -1
-        end
-        goal
-      else
-        empty_goal()
-      end
-    else
-      empty_goal()
+  fun nullo(a: Term): Goal =>
+    u_u("", a)
+
+  fun empty_goal(): Goal =>
+    object val is Goal
+      fun apply(s: State): Stream[State] =>
+        SNil[State]
     end
 
   ///////////////////////////////////////////////////////////////////////////
-  // Instead of macros, creating different versions of fresh, conj, and disj
+  // Instead of macros, creating different versions of fresh
   ///////////////////////////////////////////////////////////////////////////
   fun fresh2(f: GoalConstructor2): Goal =>
     object val is Goal
@@ -272,83 +214,12 @@ primitive MK
         g(State(sc.subst_env, v_id4 + 1))
     end
 
-  fun disj3(g1: Goal, g2: Goal, g3: Goal): Goal =>
-    let mk = MK
-    disj(g1,
-      recover
-        {(sc: State)(mk): Stream[State] =>
-          mk.mplus(g2(sc), g3(sc))
-        }
-      end
-    )
+trait val Goal
+  fun apply(state: State = State): Stream[State]
 
-  fun disj4(g1: Goal, g2: Goal, g3: Goal, g4: Goal): Goal
-  =>
-    let mk = MK
-    disj(g1,
-      disj(g2,
-        recover
-          {(sc: State)(mk): Stream[State] =>
-            mk.mplus(g3(sc), g4(sc))
-          }
-        end
-      )
-    )
+  fun val op_or(that: Goal): Goal => MK.disj(this, that)
+  fun val op_and(that: Goal): Goal => MK.conj(this, that)
 
-  fun disj5(g1: Goal, g2: Goal, g3: Goal, g4: Goal,
-    g5: Goal): Goal
-  =>
-    let mk = MK
-    disj(g1,
-      disj(g2,
-        disj(g3,
-          recover
-            {(sc: State)(mk): Stream[State] =>
-              mk.mplus(g4(sc), g5(sc))
-            }
-          end
-        )
-      )
-    )
-
-  fun conde(gs: Array[Array[Goal]]): Goal =>
-    """
-    A hack to emulate the conde macro. Can accept 5 arrays which
-    can consist of 5 goals each.
-    """
-    try
-      match gs.size()
-      | 1 => conjs(gs(0))
-      | 2 => disj(conjs(gs(0)), conjs(gs(1)))
-      | 3 => disj3(conjs(gs(0)), conjs(gs(1)), conjs(gs(2)))
-      | 4 => disj4(conjs(gs(0)), conjs(gs(1)), conjs(gs(2)),
-                   conjs(gs(3)))
-      | 5 => disj5(conjs(gs(0)), conjs(gs(1)), conjs(gs(2)),
-                   conjs(gs(3)), conjs(gs(4)))
-      else
-        empty_goal()
-      end
-    else
-      empty_goal()
-    end
-
-  fun empty_state(): State =>
-    State(SubstEnv, 0)
-
-  fun conso(a: Term, b: Term, c: Term): Goal =>
-    u_u(Pair(a, b), c)
-
-  fun nullo(a: Term): Goal =>
-    u_u("", a)
-
-  fun empty_goal(): Goal =>
-    recover
-      {(s: State): Stream[State] =>
-        SNil[State]
-      }
-    end
-
-type Goal is {(State): Stream[State]} val
 type GoalConstructor is {(Var): Goal} val
 type GoalConstructor2 is {(Var, Var): Goal} val
 type GoalConstructor3 is {(Var, Var, Var): Goal} val
