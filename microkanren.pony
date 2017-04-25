@@ -220,7 +220,53 @@ type GoalConstructor2 is {(Var, Var): Goal} val
 type GoalConstructor3 is {(Var, Var, Var): Goal} val
 type GoalConstructor4 is {(Var, Var, Var, Var): Goal} val
 
+class val Relation
+  let _ts: ReadSeq[(Term, Term)] val
 
+  new val create(ts: ReadSeq[(Term, Term)] val) =>
+    _ts = ts
+
+  fun apply(t1: Term, t2: Term): Goal =>
+    var n = _ts.size()
+    var g = MK.empty_goal()
+    try
+      while n > 0 do
+        let next = _ts(n - 1)
+        g = (MK.u_u(next._1, t1) and MK.u_u(next._2, t2)) or g
+        n = n - 1
+      end
+    end
+    g
+
+class val TransitiveRelation
+  let _f: {(Term, Term): Goal} val
+
+  new create(ts: ReadSeq[(Term, Term)] val) =>
+    let r = Relation(ts)
+    _f =
+      object val
+        fun apply(t1: Term, t2: Term): Goal =>
+          r(t1, t2)
+      end
+
+  fun apply(t1: Term, t2: Term): Goal =>
+    Transitive(_f)(t1, t2)
+
+primitive Transitive
+  fun apply(f: {(Term, Term): Goal} val): {(Term, Term): Goal} val =>
+    object val
+      let f: {(Term, Term): Goal} val = f
+      fun apply(t1: Term, t2: Term): Goal =>
+        _Transitive(t1, t2, f)
+    end
+
+primitive _Transitive
+  fun apply(t1: Term, t2: Term, f: {(Term, Term): Goal} val): Goal =>
+    MK.fresh2(
+      {(q1: Var, q2: Var): Goal =>
+        f(t1, t2) or
+        (f(t1, q1) and _Transitive(q1, t2, f))
+      } val)
 
 
 

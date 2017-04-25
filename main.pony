@@ -97,7 +97,7 @@ actor Main
       let res10 =
         MK.call_fresh(
           {(q: Var): Goal =>
-            Relations.located_in("Bronx", q)
+            LocatedIn("Bronx", q)
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res10.string().cstring())
@@ -107,23 +107,21 @@ actor Main
       let res11 =
         MK.call_fresh(
           {(q: Var): Goal =>
-            Relations.located_in(q, "US")
+            LocatedIn(q, "US")
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res11.string().cstring())
       // Stream((( (#(0) . WA)) . 3), (( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . Bronx)) . 5), (( (#(1) . WA) (#(0) . Seattle)) . 5))
 
-primitive Relations
-  fun _located_in(t1: Term, t2: Term): Goal =>
-    (MK.u_u("Bronx", t1) and MK.u_u("NY", t2)) or
-    (MK.u_u("Seattle", t1) and MK.u_u("WA", t2)) or
-    (MK.u_u("WA", t1) and MK.u_u("US", t2)) or
-    (MK.u_u("NY", t1) and MK.u_u("US", t2)) or
-    (MK.u_u("US", t1) and MK.u_u("Earth", t2))
-
-  fun located_in(t1: Term, t2: Term): Goal =>
-    Transitive({(x: Term, y: Term): Goal =>
-      Relations._located_in(x, y)} val)(t1, t2)
+primitive LocatedIn
+  fun apply(t1: Term, t2: Term): Goal =>
+    TransitiveRelation(recover [
+      ("Bronx", "NY")
+      ("Seattle", "WA")
+      ("WA", "US")
+      ("NY", "US")
+      ("US", "Earth")
+    ] end)(t1, t2)
 
 primitive Fives
   fun apply(x: Var): Goal =>
@@ -133,22 +131,6 @@ primitive Fives
         fun apply(sc: State): Stream[State] =>
           SDelay[State]({(): Stream[State] => Fives.apply(x)(sc)} val)
       end
-
-primitive Transitive
-  fun apply(f: {(Term, Term): Goal} val): {(Term, Term): Goal} val =>
-    object val
-      let f: {(Term, Term): Goal} val = f
-      fun apply(t1: Term, t2: Term): Goal =>
-        _Transitive(t1, t2, f)
-    end
-
-primitive _Transitive
-  fun apply(t1: Term, t2: Term, f: {(Term, Term): Goal} val): Goal =>
-    MK.fresh2(
-      {(q1: Var, q2: Var): Goal =>
-        f(t1, t2) or
-        (f(t1, q1) and _Transitive(q1, t2, f))
-      } val)
 
 class val Repeater
   let _v: String
