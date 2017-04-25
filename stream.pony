@@ -46,10 +46,10 @@ primitive SNil[A: Any val]
     """
     error
 
-  fun val map[B: Any val](f: {(A): B} val): Stream[B] val =>
+  fun val map[B: Any val](f: {(A): B} val): Stream[B] =>
     SNil[B]
 
-  fun val flat_map[B: Any val](f: {(A): Stream[B] val} val): Stream[B] val =>
+  fun val flat_map[B: Any val](f: {(A): Stream[B]} val): Stream[B] =>
     SNil[B]
 
   fun val filter(pred: {(A): Bool} val): Stream[A] =>
@@ -140,7 +140,7 @@ trait val SNext[A: Any val]
   //     SNil[A].map[B](f)
   //   end
 
-  // fun val flat_map[B: Any val](f: {(A): Stream[B] val} val):
+  // fun val flat_map[B: Any val](f: {(A): Stream[B]} val):
   //   SFlatMap[A, B] val
   // =>
   //   force().flat_map[B](f)
@@ -264,10 +264,10 @@ class val SCons[A: Any val]
     """
     _tail
 
-  fun val map[B: Any val](f: {(A): B} val): Stream[B] val =>
+  fun val map[B: Any val](f: {(A): B} val): Stream[B] =>
     SMap[A, B](f, this)
 
-  fun val flat_map[B: Any val](f: {(A): Stream[B] val} val): Stream[B] val =>
+  fun val flat_map[B: Any val](f: {(A): Stream[B]} val): Stream[B] =>
     SFlatMap[A, B](f, this)
 
   fun val filter(pred: {(A): Bool} val): Stream[A] =>
@@ -348,12 +348,12 @@ primitive Streams[A: Any val]
     res.reverse()
 
   // TODO: Remove this once compiler type issues are resolved above for SNext
-  fun val map[B: Any val](f: {(A): B} val, s: Stream[A]): Stream[B] val =>
+  fun val map[B: Any val](f: {(A): B} val, s: Stream[A]): Stream[B] =>
     SMap[A, B](f, s)
 
   // TODO: Remove this once compiler type issues are resolved above for SNext
-  fun val flat_map[B: Any val](f: {(A): Stream[B] val} val, s: Stream[A]):
-    Stream[B] val
+  fun val flat_map[B: Any val](f: {(A): Stream[B]} val, s: Stream[A]):
+    Stream[B]
   =>
     SFlatMap[A, B](f, s)
 
@@ -400,7 +400,7 @@ class val SMap[A: Any val, B: Any val] is SNext[B]
     _f = f
     _s = s
 
-  fun mature(): (B, Stream[B] val) ? =>
+  fun mature(): (B, Stream[B]) ? =>
     match _s.force()
     | let cons: SCons[A] =>
       (_f(cons.head()), SMap[A, B](_f, cons.tail()))
@@ -409,14 +409,14 @@ class val SMap[A: Any val, B: Any val] is SNext[B]
     end
 
 class val SFlatMap[A: Any val, B: Any val] is SNext[B]
-  let _f: {(A): Stream[B] val} val
+  let _f: {(A): Stream[B]} val
   let _s: Stream[A]
 
-  new val create(f: {(A): Stream[B] val} val, s: Stream[A]) =>
+  new val create(f: {(A): Stream[B]} val, s: Stream[A]) =>
     _f = f
     _s = s
 
-  fun mature(): (B, Stream[B] val) ? =>
+  fun mature(): (B, Stream[B]) ? =>
     match _s.force()
     | let cons: SCons[A] =>
       let next = _f(cons.head()).force()

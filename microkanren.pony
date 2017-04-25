@@ -46,9 +46,7 @@ primitive TList
 class val SubstEnv
   let _s: pers.Map[Var, Term]
 
-  new val create(mp: pers.Map[Var, Term] val =
-    pers.Map[Var, Term])
-  =>
+  new val create(mp: pers.Map[Var, Term] val = pers.Map[Var, Term]) =>
     _s = mp
 
   fun empty(): Bool => _s.size() == 0
@@ -85,8 +83,7 @@ primitive MK
   fun ext_s(v: Var, t: Term, s: SubstEnv): SubstEnv =>
     s + (v, t)
 
-  fun unify(u: Term, v: Term, s: SubstEnv): SubstEnv
-  =>
+  fun unify(u: Term, v: Term, s: SubstEnv): SubstEnv =>
     let uw = walk(u, s)
     let vw = walk(v, s)
     match (uw, vw)
@@ -129,9 +126,7 @@ primitive MK
         g(State(sc.subst_env, v_id + 1))
     end
 
-  fun mplus(s1: Stream[State], s2: Stream[State]):
-    Stream[State]
-  =>
+  fun mplus(s1: Stream[State], s2: Stream[State]): Stream[State] =>
     try
       match s1
       | let n: SNil[State] => s2

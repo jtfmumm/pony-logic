@@ -122,11 +122,8 @@ primitive Relations
     (MK.u_u("US", t1) and MK.u_u("Earth", t2))
 
   fun located_in(t1: Term, t2: Term): Goal =>
-    MK.fresh2(
-      {(q1: Var, q2: Var): Goal =>
-        Relations._located_in(t1, t2) or
-        (Relations._located_in(t1, q1) and Relations._located_in(q1, t2))
-      } val)
+    Transitive({(x: Term, y: Term): Goal =>
+      Relations._located_in(x, y)} val)(t1, t2)
 
 primitive Fives
   fun apply(x: Var): Goal =>
@@ -136,6 +133,22 @@ primitive Fives
         fun apply(sc: State): Stream[State] =>
           SDelay[State]({(): Stream[State] => Fives.apply(x)(sc)} val)
       end
+
+primitive Transitive
+  fun apply(f: {(Term, Term): Goal} val): {(Term, Term): Goal} val =>
+    object val
+      let f: {(Term, Term): Goal} val = f
+      fun apply(t1: Term, t2: Term): Goal =>
+        _Transitive(t1, t2, f)
+    end
+
+primitive _Transitive
+  fun apply(t1: Term, t2: Term, f: {(Term, Term): Goal} val): Goal =>
+    MK.fresh2(
+      {(q1: Var, q2: Var): Goal =>
+        f(t1, t2) or
+        (f(t1, q1) and _Transitive(q1, t2, f))
+      } val)
 
 class val Repeater
   let _v: String
