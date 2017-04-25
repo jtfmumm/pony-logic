@@ -101,7 +101,7 @@ actor Main
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res10.string().cstring())
-      // Stream((( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . US)) . 3))
+      // Stream((( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . US)) . 5), (( (#(1) . NY) (#(0) . Earth) (#(3) . US)) . 7))
 
       @printf[I32]("\nRelation2\n".cstring())
       let res11 =
@@ -111,7 +111,7 @@ actor Main
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res11.string().cstring())
-      // Stream((( (#(0) . WA)) . 3), (( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . Bronx)) . 3), (( (#(1) . WA) (#(0) . Seattle)) . 3))
+      // Stream((( (#(0) . WA)) . 3), (( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . Bronx)) . 5), (( (#(1) . WA) (#(0) . Seattle)) . 5))
 
 primitive Relations
   fun _located_in(t1: Term, t2: Term): Goal =>
