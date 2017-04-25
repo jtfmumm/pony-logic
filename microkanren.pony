@@ -71,6 +71,8 @@ class val State
     subst_env = s
     next_var_id = next_v_id
 
+  fun apply(v: Var): Term => subst_env(v)
+
   fun string(): String =>
     "((" + subst_env.string() + ")" + " . " + next_var_id.string() + ")"
 
@@ -176,6 +178,9 @@ primitive MK
         SNil[State]
     end
 
+  fun reify(st: Stream[State]): Stream[Term] =>
+    Streams[State].map[Term]({(s: State): Term => s(Var(0))} val, st)
+
   ///////////////////////////////////////////////////////////////////////////
   // Instead of macros, creating different versions of fresh
   ///////////////////////////////////////////////////////////////////////////
@@ -243,14 +248,13 @@ class val TransitiveRelation
 
   new create(ts: ReadSeq[(Term, Term)] val) =>
     let r = Relation(ts)
-    _f =
-      object val
-        fun apply(t1: Term, t2: Term): Goal =>
-          r(t1, t2)
-      end
+    _f = Transitive(object val
+      fun apply(t1: Term, t2: Term): Goal =>
+        r(t1, t2)
+    end)
 
   fun apply(t1: Term, t2: Term): Goal =>
-    Transitive(_f)(t1, t2)
+    _f(t1, t2)
 
 primitive Transitive
   fun apply(f: {(Term, Term): Goal} val): {(Term, Term): Goal} val =>

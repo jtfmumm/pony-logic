@@ -102,6 +102,9 @@ actor Main
 
       @printf[I32]("%s\n".cstring(), res10.string().cstring())
       // Stream((( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . US)) . 5), (( (#(1) . NY) (#(0) . Earth) (#(3) . US)) . 7))
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res10).string().cstring())
+      // Reified: Stream(NY, US, Earth)
 
       @printf[I32]("\nRelation2\n".cstring())
       let res11 =
@@ -112,6 +115,9 @@ actor Main
 
       @printf[I32]("%s\n".cstring(), res11.string().cstring())
       // Stream((( (#(0) . WA)) . 3), (( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . Bronx)) . 5), (( (#(1) . WA) (#(0) . Seattle)) . 5))
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res11).string().cstring())
+      // Reified: Stream(WA, NY, Bronx, Seattle)
 
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>

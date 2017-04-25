@@ -213,7 +213,7 @@ trait val SNext[A: Any val]
         end
       end
     else
-      "Stream()"
+      ")"
     end
 
 class val SCons[A: Any val]
