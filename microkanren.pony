@@ -275,7 +275,7 @@ primitive MK
       {(h: Var, t: Var)(x): Goal =>
         MK.delay(
           MK.delay(MK.match_conso(h, t, l)) and
-          MK.delay(MK.membero(x, t))
+          MK.delay(MK.match_membero(x, t))
         )
       } val)
 
