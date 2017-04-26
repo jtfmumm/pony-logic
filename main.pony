@@ -103,21 +103,73 @@ actor Main
       @printf[I32]("%s\n".cstring(), res10.string().cstring())
       // Stream((( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . US)) . 5), (( (#(1) . NY) (#(0) . Earth) (#(3) . US)) . 7))
       @printf[I32]("Reified: %s\n".cstring(),
-        MK.reify(res10).string().cstring())
+        MK.reify_items(res10).string().cstring())
       // Reified: Stream(NY, US, Earth)
 
       @printf[I32]("\nRelation2\n".cstring())
       let res11 =
         MK.call_fresh(
           {(q: Var): Goal =>
-            LocatedIn(q, "US")
+            LocatedIn(q, "Earth")
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res11.string().cstring())
       // Stream((( (#(0) . WA)) . 3), (( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . Bronx)) . 5), (( (#(1) . WA) (#(0) . Seattle)) . 5))
       @printf[I32]("Reified: %s\n".cstring(),
-        MK.reify(res11).string().cstring())
+        MK.reify_items(res11).string().cstring())
       // Reified: Stream(WA, NY, Bronx, Seattle)
+
+      @printf[I32]("\nAppendo\n".cstring())
+      let res12 =
+        MK.call_fresh(
+          {(q1: Var): Goal =>
+            MK.appendo(TList("a b"), TList("c d"), q1)
+          } val)()
+
+      @printf[I32]("%s\n".cstring(), res12.string().cstring())
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res12).string().cstring())
+
+      @printf[I32]("\nAppendo\n".cstring())
+      let res13 =
+        MK.fresh2(
+          {(q1: Var, q2: Var): Goal =>
+            MK.appendo(q1, q2, TList("a b c d e"))
+          } val)()
+
+      @printf[I32]("%s\n".cstring(), res13.string().cstring())
+      @printf[I32]("%lu\n".cstring(), res13.size())
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify2(res13).string().cstring())
+
+      @printf[I32]("\nMembero\n".cstring())
+      let res14 =
+        MK.call_fresh(
+          {(q1: Var): Goal =>
+            MK.membero("a", q1)
+          } val)().take(10)
+
+      @printf[I32]("%s\n".cstring(), res14.string().cstring())
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res14).string().cstring())
+
+      @printf[I32]("\nMatch_listo1\n".cstring())
+      let res15 =
+        MK.call_fresh(
+          {(q1: Var): Goal =>
+            MK.match_listo(TList("a b c d e"), q1)
+          } val)()
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res15).string().cstring())
+
+
+      @printf[I32]("\nMatch_listo2\n".cstring())
+      let res16 =
+          MK.match_listo(TList("a _ c _ e"), TList("a b c d e"))()
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res16).string().cstring())
 
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>
@@ -127,6 +179,7 @@ primitive LocatedIn
       ("WA", "US")
       ("NY", "US")
       ("US", "Earth")
+      ("Earth", "Cosmos")
     ] end)(t1, t2)
 
 primitive Fives
@@ -152,6 +205,19 @@ class val Repeater
         fun apply(sc: State): Stream[State] =>
           SDelay[State]({(): Stream[State] => self(x)(sc)} val)
       end
+
+primitive Helpers
+  fun righto(t1: Term, t2: Term, lst: Term): Goal =>
+    MK.fresh3(
+      {(h: Var, tail1: Var, tail2: Var): Goal =>
+        (MK.conso(t1, tail1, lst) and
+          MK.conso(t2, tail2, tail1)) or
+        (MK.conso(h, tail1, lst) and
+          Helpers.righto(t1, t2, tail1))
+      } val)
+
+  fun nexto(t1: Term, t2: Term, lst: Term): Goal =>
+    righto(t1, t2, lst) or righto(t2, t1, lst)
 
 //////////////////////////
 // Some infinite streams

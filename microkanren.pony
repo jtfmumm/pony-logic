@@ -1,5 +1,5 @@
 use "collections"
-use pers = "collections/persistent"
+// use pers = "collections/persistent"
 
 type Value is String
 type Term is (Value | Var | Pair)
@@ -10,6 +10,7 @@ class val Var is Equatable[Var]
   fun eq(that: Var): Bool => id == that.id
   fun string(): String => "#(" + id.string() + ")"
   fun hash(): U64 => id.hash()
+  fun increment(): Var => Var(id + 1)
 
 class val Pair
   let fst: Term
@@ -22,13 +23,18 @@ class val Pair
   fun string(): String =>
     "(" + fst.string() + " . " + snd.string() + ")"
 
+primitive TNil
+  fun apply(): String =>
+    "()"
+
 // Mimic lists of terms
 // e.g. "a b c" is converted into Pair("a", Pair("b", Pair("c", "")))
 primitive TList
   fun apply(str: String): Term =>
     let arr = str.split(" ")
     var n = arr.size()
-    var l: Term = ""
+    if (str == "") or (n == 0) then return TNil() end
+    var l: Term = TNil()
     try
       while n > 0 do
         l = Pair(arr(n - 1), l)
@@ -37,28 +43,34 @@ primitive TList
       match l
       | let p: Pair => p
       else
-        Pair(l, "")
+        TNil()
       end
     else
-      ""
+      // This should never happen
+      TNil()
     end
 
 class val SubstEnv
-  let _s: pers.Map[Var, Term]
+  // There's a bug in the Pony stdlib CHAMP map.
+  // TODO: Update and use my HAMT map for now and address Pony stdlib bug
+  // Temporarily using a very inefficient persistent map standin
+  let _s: PMap
 
-  new val create(mp: pers.Map[Var, Term] val = pers.Map[Var, Term]) =>
+  new val create(mp: PMap = PMap) =>
     _s = mp
 
   fun empty(): Bool => _s.size() == 0
   fun add(v: Var, t: Term): SubstEnv => SubstEnv(_s.update(v, t))
   fun apply(v: Var): Term => _s.get_or_else(v, v)
+  fun reify(v: Var): Term => MK.walk(v, SubstEnv(_s))._1
 
   fun string(): String =>
     var str = ""
-    for (v, t) in _s.pairs() do
+    for (v, t) in _s.map().pairs() do
       // USize.max_value() is used to record a #t (this is a hack). Don't print
       if not (v.id == USize.max_value()) then
         str = str + " (" + v.string() + " . " + t.string() + ")"
+        // str = str + "\n  " + v.string() + ": " + t.string()
       end
     end
     str
@@ -72,32 +84,56 @@ class val State
     next_var_id = next_v_id
 
   fun apply(v: Var): Term => subst_env(v)
+  fun reify(v: Var): Term => subst_env.reify(v)
 
   fun string(): String =>
     "((" + subst_env.string() + ")" + " . " + next_var_id.string() + ")"
+    // "\nState(" + subst_env.string() + ")" + "\nNext var: " +
+      // next_var_id.string() + ")"
 
 primitive MK
-  fun walk(t: Term, s: SubstEnv): Term =>
+  fun walk(t: Term, s: SubstEnv): (Term, SubstEnv) =>
     match t
-    | let v: Var => s(v)
-    else t end
+    | let v: Var =>
+      match s(v)
+      | let v': Var if v != v' =>
+        (let next_t: Term, let next_s: SubstEnv) = walk(v', s)
+        (next_t, next_s)
+      | let p: Pair =>
+        match (p.fst, p.snd)
+        | (let v1: Var, let v2: Var) =>
+          (let fst: Term, let s': SubstEnv) = walk(v1, s)
+          (let snd: Term, let s'': SubstEnv) = walk(v2, s')
+          (Pair(fst, snd), s'')
+        | (let v1: Var, _) =>
+          (let fst: Term, let s': SubstEnv) = walk(v1, s)
+          (Pair(fst, p.snd), s')
+        | (_, let v2: Var) =>
+          (let snd: Term, let s': SubstEnv) = walk(v2, s)
+          (Pair(p.fst, snd), s')
+        else (p, s) end
+      else (s(v), s) end
+    else (t, s) end
 
   fun ext_s(v: Var, t: Term, s: SubstEnv): SubstEnv =>
     s + (v, t)
 
   fun unify(u: Term, v: Term, s: SubstEnv): SubstEnv =>
-    let uw = walk(u, s)
-    let vw = walk(v, s)
+    (let uw: Term, let s': SubstEnv) = walk(u, s)
+    (let vw: Term, let s'': SubstEnv) = walk(v, s')
     match (uw, vw)
-    | (let x: Var, let y: Var) if x == y => s
-    | (let x: Var, _) => ext_s(x, v, s)
-    | (_, let y: Var) => ext_s(y, u, s)
+    | (let x: Var, let y: Var) if x == y => s''
+    | (let x: Var, _) => ext_s(x, v, s'')
+    | (_, let y: Var) => ext_s(y, u, s'')
     | (let p1: Pair, let p2: Pair) =>
-      let s' = unify(p1.fst, p2.fst, s)
-      unify(p1.snd, p2.snd, s')
+      let ps = unify(p1.fst, p2.fst, s'')
+      unify(p1.snd, p2.snd, ps)
     | (let x: Value, let y: Value) if x == y =>
       // A hack to record #t
-      s + (Var(USize.max_value()), "#t")
+      s'' + (Var(USize.max_value()), "#t")
+    // | (let x: TNil, let y: TNil) if x == y =>
+    //   // A hack to record #t
+    //   s'' + (Var(USize.max_value()), "#t")
     else
       SubstEnv
     end
@@ -166,11 +202,99 @@ primitive MK
         MK.bind(g1(sc), g2)
     end
 
+  fun delay(g: Goal): Goal =>
+    object val is Goal
+      let g: Goal = g
+      fun apply(s: State): Stream[State] =>
+        SDelay[State]({(): Stream[State] => g(s)} val)
+    end
+
   fun conso(a: Term, b: Term, c: Term): Goal =>
     u_u(Pair(a, b), c)
 
+  fun heado(h: Term, l: Term): Goal =>
+    call_fresh(
+      {(t: Var): Goal =>
+        MK.conso(h, t, l)
+      } val)
+
+  fun tailo(t: Term, l: Term): Goal =>
+    call_fresh(
+      {(h: Var): Goal =>
+        MK.conso(h, t, l)
+      } val)
+
+  fun appendo(l1: Term, l2: Term, result: Term): Goal =>
+    (nullo(l1) and u_u(l2, result)) or
+    fresh3(
+      {(h: Var, t: Var, lst: Var): Goal =>
+        MK.conso(h, t, l1) and
+        MK.conso(h, lst, result) and
+        MK.appendo(t, l2, lst)
+      } val)
+
+  fun membero(x: Term, l: Term): Goal =>
+    call_fresh(
+      {(t: Var): Goal =>
+        MK.conso(x, t, l)
+      } val)
+    or fresh2(
+      {(h: Var, t: Var)(x): Goal =>
+        MK.delay(
+          MK.delay(MK.conso(h, t, l)) and
+          MK.delay(MK.membero(x, t))
+        )
+      } val)
+
+  fun match_elemento(x: Term, y: Term): Goal =>
+    u_u(x, y) or
+    u_u(x, "_")
+
+  fun match_conso(a: Term, b: Term, c: Term): Goal =>
+    u_u(Pair(a, b), c) or
+    call_fresh(
+      {(h: Var): Goal =>
+        MK.u_u(a, "_") and
+          MK.conso(h, b, c)
+      } val)
+
+  fun match_heado(h: Term, l: Term): Goal =>
+    fresh2(
+      {(t: Var, h2: Var): Goal =>
+        MK.conso(h, t, l) or
+        (MK.conso(h2, t, l) and
+          MK.u_u(h, "_"))
+      } val)
+
+  fun match_membero(x: Term, l: Term): Goal =>
+    call_fresh(
+      {(t: Var): Goal =>
+        MK.match_conso(x, t, l)
+      } val)
+    or fresh2(
+      {(h: Var, t: Var)(x): Goal =>
+        MK.delay(
+          MK.delay(MK.match_conso(h, t, l)) and
+          MK.delay(MK.membero(x, t))
+        )
+      } val)
+
+  fun match_listo(l1: Term, l2: Term): Goal =>
+    (nullo(l1) and nullo(l2)) or
+    fresh4(
+      {(h1: Var, h2: Var, t1: Var, t2: Var): Goal =>
+        MK.conso(h1, t1, l1) and
+        MK.conso(h2, t2, l2) and
+        MK.match_elemento(h1, h2) and
+        MK.match_listo(t1, t2)
+      } val)
+
+  fun matcho(t1: Term, t2: Term): Goal =>
+    match_elemento(t1, t2) or
+    match_listo(t1, t2)
+
   fun nullo(a: Term): Goal =>
-    u_u("", a)
+    u_u(TNil(), a)
 
   fun empty_goal(): Goal =>
     object val is Goal
@@ -178,8 +302,18 @@ primitive MK
         SNil[State]
     end
 
-  fun reify(st: Stream[State]): Stream[Term] =>
-    Streams[State].map[Term]({(s: State): Term => s(Var(0))} val, st)
+  fun reify_items(st: Stream[State]): Stream[Term] =>
+    Streams[State].map[Term]({(s: State): Term =>
+      s.reify(Var(0))} val, st)
+
+  fun reify(st: Stream[State]): Stream[String] =>
+    Streams[State].map[String]({(s: State): String =>
+      "\n[0: " + s.reify(Var(0)).string() + "]"} val, st)
+
+  fun reify2(st: Stream[State]): Stream[String] =>
+    Streams[State].map[String]({(s: State): String =>
+      "\n[0: " + s.reify(Var(0)).string() + ", 1: " +
+        s.reify(Var(1)).string() + "]"} val, st)
 
   ///////////////////////////////////////////////////////////////////////////
   // Instead of macros, creating different versions of fresh
@@ -273,4 +407,29 @@ primitive _Transitive
       } val)
 
 
+// This is an inefficient substitute for a persistent map, copying everything
+// on any update.
+// It exists because there's a bug in the Pony stdlib persistent map
+// that either causes keys to be lost or pairs() to return an incomplete
+// iterator. Once that is addressed, or I update my HAMT map to work with
+// latest compiler, stop using this.
+class val PMap
+  let _s: Map[Var, Term] val
 
+  new val create(s: Map[Var, Term] val = recover Map[Var, Term] end) =>
+    _s = s
+
+  fun size(): USize => _s.size()
+
+  fun update(v: Var, t: Term): PMap =>
+    let m: Map[Var, Term] trn = recover Map[Var, Term] end
+    for (k, v') in _s.pairs() do
+      m(k) = v'
+    end
+    m(v) = t
+    PMap(consume m)
+
+  fun get_or_else(v: Var, t: Term): Term =>
+    _s.get_or_else(v, t)
+
+  fun map(): Map[Var, Term] val => _s
