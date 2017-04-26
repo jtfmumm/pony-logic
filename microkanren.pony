@@ -77,27 +77,45 @@ class val State
     "((" + subst_env.string() + ")" + " . " + next_var_id.string() + ")"
 
 primitive MK
-  fun walk(t: Term, s: SubstEnv): Term =>
+  fun walk(t: Term, s: SubstEnv): (Term, SubstEnv) =>
     match t
-    | let v: Var => s(v)
-    else t end
+    | let v: Var =>
+      match s(v)
+      | let v': Var if v != v' =>
+        (let next_t: Term, let next_s: SubstEnv) = walk(v', s)
+        (next_t, next_s + (v, next_t))
+      else (s(v), s) end
+    | let p: Pair =>
+      match (p.fst, p.snd)
+      | (let v1: Var, let v2: Var) =>
+        (let fst: Term, let s': SubstEnv) = walk(p.fst, s)
+        (let snd: Term, let s'': SubstEnv) = walk(p.fst, s')
+        (Pair(fst, snd), s'')
+      | (let v1: Var, _) =>
+        (let fst: Term, let s': SubstEnv) = walk(p.fst, s)
+        (Pair(fst, p.snd), s')
+      | (_, let v2: Var) =>
+        (let snd: Term, let s': SubstEnv) = walk(p.fst, s)
+        (Pair(p.fst, snd), s')
+      else (p, s) end
+    else (t, s) end
 
   fun ext_s(v: Var, t: Term, s: SubstEnv): SubstEnv =>
     s + (v, t)
 
   fun unify(u: Term, v: Term, s: SubstEnv): SubstEnv =>
-    let uw = walk(u, s)
-    let vw = walk(v, s)
+    (let uw: Term, let s': SubstEnv) = walk(u, s)
+    (let vw: Term, let s'': SubstEnv) = walk(v, s')
     match (uw, vw)
-    | (let x: Var, let y: Var) if x == y => s
-    | (let x: Var, _) => ext_s(x, v, s)
-    | (_, let y: Var) => ext_s(y, u, s)
+    | (let x: Var, let y: Var) if x == y => s''
+    | (let x: Var, _) => ext_s(x, v, s'')
+    | (_, let y: Var) => ext_s(y, u, s'')
     | (let p1: Pair, let p2: Pair) =>
-      let s' = unify(p1.fst, p2.fst, s)
-      unify(p1.snd, p2.snd, s')
+      let ps = unify(p1.fst, p2.fst, s'')
+      unify(p1.snd, p2.snd, ps)
     | (let x: Value, let y: Value) if x == y =>
       // A hack to record #t
-      s + (Var(USize.max_value()), "#t")
+      s'' + (Var(USize.max_value()), "#t")
     else
       SubstEnv
     end
