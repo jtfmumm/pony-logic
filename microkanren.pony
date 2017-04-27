@@ -1,18 +1,36 @@
-use "collections"
+// use "collections"
 // use pers = "collections/persistent"
 
-type Value is String
-type Term is (Value | Var | Pair)
+trait val Term
+  // Unification ==
+  fun val eq(t: Term): Goal => MK.u_u(this, t)
+  fun string(): String
 
-class val Var is Equatable[Var]
+class val Vl is Term
+  let _v: String
+  new val create(v: String) => _v = v
+  fun string(): String => _v.string()
+  fun valeq(that: Vl): Bool => _v == that._v
+  fun matcher(): Bool => _v == "_"
+
+class val Var is Term
   let id: USize
   new val create(id': USize) => id = id'
-  fun eq(that: Var): Bool => id == that.id
+  fun valeq(that: Var): Bool => id == that.id
   fun string(): String => "#(" + id.string() + ")"
   fun hash(): U64 => id.hash()
   fun increment(): Var => Var(id + 1)
 
-class val Pair
+class val VarKey is Equatable[VarKey]
+  let _v: Var
+  new val create(v: Var) =>
+    _v = v
+  fun id(): USize => _v.id
+  fun string(): String => _v.string()
+  fun eq(that: VarKey): Bool => _v.id == that._v.id
+  fun hash(): U64 => _v.id.hash()
+
+class val Pair is Term
   let fst: Term
   let snd: Term
 
@@ -24,8 +42,11 @@ class val Pair
     "(" + fst.string() + " . " + snd.string() + ")"
 
 primitive TNil
-  fun apply(): String =>
-    "()"
+  fun apply(): Vl => Vl("()")
+
+primitive True
+  fun apply(): Vl => Vl("#t")
+  fun id(): USize => USize.max_value()
 
 // Mimic lists of terms
 // e.g. "a b c" is converted into Pair("a", Pair("b", Pair("c", "")))
@@ -37,7 +58,7 @@ primitive TList
     var l: Term = TNil()
     try
       while n > 0 do
-        l = Pair(arr(n - 1), l)
+        l = Pair(Vl(arr(n - 1)), l)
         n = n - 1
       end
       match l
@@ -51,24 +72,25 @@ primitive TList
     end
 
 class val SubstEnv
-  // There's a bug in the Pony stdlib CHAMP map.
-  // TODO: Update and use my HAMT map for now and address Pony stdlib bug
-  // Temporarily using a very inefficient persistent map standin
-  let _s: PMap
+  let _s: Map[VarKey, Term]
 
-  new val create(mp: PMap = PMap) =>
+  new val create(mp: Map[VarKey, Term] = Maps.empty[VarKey, Term]()) =>
     _s = mp
 
   fun empty(): Bool => _s.size() == 0
-  fun add(v: Var, t: Term): SubstEnv => SubstEnv(_s.update(v, t))
-  fun apply(v: Var): Term => _s.get_or_else(v, v)
+  fun val add(v: Var, t: Term): SubstEnv =>
+    try SubstEnv(_s.update(VarKey(v), t)) else this end
+  fun apply(v: Var): Term => _s.get_or_else(VarKey(v), v)
   fun reify(v: Var): Term => MK.walk(v, SubstEnv(_s))._1
+  fun success(): Bool => _s.contains(VarKey(Var(True.id())))
 
   fun string(): String =>
     var str = ""
-    for (v, t) in _s.map().pairs() do
+    for (v, t) in _s.pairs() do
       // USize.max_value() is used to record a #t (this is a hack). Don't print
-      if not (v.id == USize.max_value()) then
+      if (v.id() == True.id()) then
+        str = str + " #t"
+      else
         str = str + " (" + v.string() + " . " + t.string() + ")"
         // str = str + "\n  " + v.string() + ": " + t.string()
       end
@@ -85,18 +107,19 @@ class val State
 
   fun apply(v: Var): Term => subst_env(v)
   fun reify(v: Var): Term => subst_env.reify(v)
+  fun success(): Bool => subst_env.success()
 
   fun string(): String =>
     "((" + subst_env.string() + ")" + " . " + next_var_id.string() + ")"
     // "\nState(" + subst_env.string() + ")" + "\nNext var: " +
-      // next_var_id.string() + ")"
+    //   next_var_id.string() + ")"
 
 primitive MK
   fun walk(t: Term, s: SubstEnv): (Term, SubstEnv) =>
     match t
     | let v: Var =>
       match s(v)
-      | let v': Var if v != v' =>
+      | let v': Var if not v.valeq(v') =>
         (let next_t: Term, let next_s: SubstEnv) = walk(v', s)
         (next_t, next_s)
       | let p: Pair =>
@@ -112,6 +135,7 @@ primitive MK
           (let snd: Term, let s': SubstEnv) = walk(v2, s)
           (Pair(p.fst, snd), s')
         else (p, s) end
+      // | let vl: Vl if vl.matcher() => (v, s)
       else (s(v), s) end
     else (t, s) end
 
@@ -122,18 +146,22 @@ primitive MK
     (let uw: Term, let s': SubstEnv) = walk(u, s)
     (let vw: Term, let s'': SubstEnv) = walk(v, s')
     match (uw, vw)
-    | (let x: Var, let y: Var) if x == y => s''
+    | (let x: Var, let y: Var) if x.valeq(y) =>
+      ext_s(Var(True.id()), True(), s'')
+    // | (let x: Var, let vl: Vl) if vl.matcher() => s''
     | (let x: Var, _) => ext_s(x, v, s'')
+    // | (let vl: Vl, let y: Var) if vl.matcher() => s''
     | (_, let y: Var) => ext_s(y, u, s'')
     | (let p1: Pair, let p2: Pair) =>
       let ps = unify(p1.fst, p2.fst, s'')
-      unify(p1.snd, p2.snd, ps)
-    | (let x: Value, let y: Value) if x == y =>
+      if ps.empty() then
+        SubstEnv
+      else
+        unify(p1.snd, p2.snd, ps)
+      end
+    | (let x: Vl, let y: Vl) if x.valeq(y) =>//  or x.matcher() or y.matcher()) =>
       // A hack to record #t
-      s'' + (Var(USize.max_value()), "#t")
-    // | (let x: TNil, let y: TNil) if x == y =>
-    //   // A hack to record #t
-    //   s'' + (Var(USize.max_value()), "#t")
+      s'' + (Var(True.id()), True())
     else
       SubstEnv
     end
@@ -156,7 +184,7 @@ primitive MK
         end
     end
 
-  fun call_fresh(f: GoalConstructor): Goal =>
+  fun fresh(f: GoalConstructor): Goal =>
     object val is Goal
       fun apply(sc: State): Stream[State] =>
         let v_id = sc.next_var_id
@@ -169,9 +197,9 @@ primitive MK
       match s1
       | let n: SNil[State] => s2
       | let sn: SNext[State] =>
-        SMerge[State](s2, sn.force())
+        SDelay[State]({(): Stream[State] => MK.mplus(s2, sn.force())} val)
       else
-        SCons[State](s1.head(), mplus(s1.tail(), s2))
+        SCons[State](s1.head(), mplus(s2, s1.tail()))
       end
     else
       mzero()
@@ -179,8 +207,10 @@ primitive MK
 
   fun bind(s: Stream[State], g: Goal): Stream[State] =>
     try
-      match s.force()
+      match s
       | let n: SNil[State] => mzero()
+      | let sn: SNext[State] =>
+        SDelay[State]({(): Stream[State] => MK.bind(sn.force(), g)} val)
       else
         mplus(g(s.head()), bind(s.tail(), g))
       end
@@ -210,22 +240,40 @@ primitive MK
     end
 
   fun conso(a: Term, b: Term, c: Term): Goal =>
-    u_u(Pair(a, b), c)
+    Pair(a, b) == c
+
+  fun nullo(a: Term): Goal =>
+    (TNil() == a)
+
+  fun empty_goal(): Goal =>
+    object val is Goal
+      fun apply(s: State): Stream[State] =>
+        SNil[State]
+    end
+
+  fun success(): Goal =>
+    object val is Goal
+      fun apply(s: State): Stream[State] =>
+        MK.unit(State(s.subst_env + (Var(True.id()), True()), s.next_var_id))
+    end
+
+  fun failure(): Goal =>
+    empty_goal()
 
   fun heado(h: Term, l: Term): Goal =>
-    call_fresh(
+    fresh(
       {(t: Var): Goal =>
         MK.conso(h, t, l)
       } val)
 
   fun tailo(t: Term, l: Term): Goal =>
-    call_fresh(
+    fresh(
       {(h: Var): Goal =>
         MK.conso(h, t, l)
       } val)
 
   fun appendo(l1: Term, l2: Term, result: Term): Goal =>
-    (nullo(l1) and u_u(l2, result)) or
+    (nullo(l1) and (l2 == result)) or
     fresh3(
       {(h: Var, t: Var, lst: Var): Goal =>
         MK.conso(h, t, l1) and
@@ -234,73 +282,12 @@ primitive MK
       } val)
 
   fun membero(x: Term, l: Term): Goal =>
-    call_fresh(
-      {(t: Var): Goal =>
-        MK.conso(x, t, l)
+    MK.heado(x, l) or
+    fresh(
+      {(t: Var)(x): Goal =>
+        MK.tailo(t, l) and
+        MK.delay(MK.membero(x, t))
       } val)
-    or fresh2(
-      {(h: Var, t: Var)(x): Goal =>
-        MK.delay(
-          MK.delay(MK.conso(h, t, l)) and
-          MK.delay(MK.membero(x, t))
-        )
-      } val)
-
-  fun match_elemento(x: Term, y: Term): Goal =>
-    u_u(x, y) or
-    u_u(x, "_")
-
-  fun match_conso(a: Term, b: Term, c: Term): Goal =>
-    u_u(Pair(a, b), c) or
-    call_fresh(
-      {(h: Var): Goal =>
-        MK.u_u(a, "_") and
-          MK.conso(h, b, c)
-      } val)
-
-  fun match_heado(h: Term, l: Term): Goal =>
-    fresh2(
-      {(t: Var, h2: Var): Goal =>
-        MK.conso(h, t, l) or
-        (MK.conso(h2, t, l) and
-          MK.u_u(h, "_"))
-      } val)
-
-  fun match_membero(x: Term, l: Term): Goal =>
-    call_fresh(
-      {(t: Var): Goal =>
-        MK.match_conso(x, t, l)
-      } val)
-    or fresh2(
-      {(h: Var, t: Var)(x): Goal =>
-        MK.delay(
-          MK.delay(MK.match_conso(h, t, l)) and
-          MK.delay(MK.match_membero(x, t))
-        )
-      } val)
-
-  fun match_listo(l1: Term, l2: Term): Goal =>
-    (nullo(l1) and nullo(l2)) or
-    fresh4(
-      {(h1: Var, h2: Var, t1: Var, t2: Var): Goal =>
-        MK.conso(h1, t1, l1) and
-        MK.conso(h2, t2, l2) and
-        MK.match_elemento(h1, h2) and
-        MK.match_listo(t1, t2)
-      } val)
-
-  fun matcho(t1: Term, t2: Term): Goal =>
-    match_elemento(t1, t2) or
-    match_listo(t1, t2)
-
-  fun nullo(a: Term): Goal =>
-    u_u(TNil(), a)
-
-  fun empty_goal(): Goal =>
-    object val is Goal
-      fun apply(s: State): Stream[State] =>
-        SNil[State]
-    end
 
   fun reify_items(st: Stream[State]): Stream[Term] =>
     Streams[State].map[Term]({(s: State): Term =>
@@ -308,12 +295,14 @@ primitive MK
 
   fun reify(st: Stream[State]): Stream[String] =>
     Streams[State].map[String]({(s: State): String =>
-      "\n[0: " + s.reify(Var(0)).string() + "]"} val, st)
+      let t = if s.success() then " #t" else "" end
+      "\n[0: " + s.reify(Var(0)).string() + t + "]"} val, st)
 
   fun reify2(st: Stream[State]): Stream[String] =>
     Streams[State].map[String]({(s: State): String =>
+      let t = if s.success() then " #t" else "" end
       "\n[0: " + s.reify(Var(0)).string() + ", 1: " +
-        s.reify(Var(1)).string() + "]"} val, st)
+        s.reify(Var(1)).string() + t + "]"} val, st)
 
   ///////////////////////////////////////////////////////////////////////////
   // Instead of macros, creating different versions of fresh
@@ -360,9 +349,9 @@ type GoalConstructor3 is {(Var, Var, Var): Goal} val
 type GoalConstructor4 is {(Var, Var, Var, Var): Goal} val
 
 class val Relation
-  let _ts: ReadSeq[(Term, Term)] val
+  let _ts: ReadSeq[(String, String)] val
 
-  new val create(ts: ReadSeq[(Term, Term)] val) =>
+  new val create(ts: ReadSeq[(String, String)] val) =>
     _ts = ts
 
   fun apply(t1: Term, t2: Term): Goal =>
@@ -371,7 +360,7 @@ class val Relation
     try
       while n > 0 do
         let next = _ts(n - 1)
-        g = (MK.u_u(next._1, t1) and MK.u_u(next._2, t2)) or g
+        g = ((Vl(next._1) == t1) and (Vl(next._2) == t2)) or g
         n = n - 1
       end
     end
@@ -380,7 +369,7 @@ class val Relation
 class val TransitiveRelation
   let _f: {(Term, Term): Goal} val
 
-  new create(ts: ReadSeq[(Term, Term)] val) =>
+  new create(ts: ReadSeq[(String, String)] val) =>
     let r = Relation(ts)
     _f = Transitive(object val
       fun apply(t1: Term, t2: Term): Goal =>
@@ -405,31 +394,3 @@ primitive _Transitive
         f(t1, t2) or
         (f(t1, q1) and _Transitive(q1, t2, f))
       } val)
-
-
-// This is an inefficient substitute for a persistent map, copying everything
-// on any update.
-// It exists because there's a bug in the Pony stdlib persistent map
-// that either causes keys to be lost or pairs() to return an incomplete
-// iterator. Once that is addressed, or I update my HAMT map to work with
-// latest compiler, stop using this.
-class val PMap
-  let _s: Map[Var, Term] val
-
-  new val create(s: Map[Var, Term] val = recover Map[Var, Term] end) =>
-    _s = s
-
-  fun size(): USize => _s.size()
-
-  fun update(v: Var, t: Term): PMap =>
-    let m: Map[Var, Term] trn = recover Map[Var, Term] end
-    for (k, v') in _s.pairs() do
-      m(k) = v'
-    end
-    m(v) = t
-    PMap(consume m)
-
-  fun get_or_else(v: Var, t: Term): Term =>
-    _s.get_or_else(v, t)
-
-  fun map(): Map[Var, Term] val => _s

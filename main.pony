@@ -6,45 +6,45 @@ actor Main
   fun run() =>
       @printf[I32]("\nSimple ===\n".cstring())
       let res: Stream[State] =
-        MK.call_fresh({(q: Var): Goal => MK.u_u(q, "5")} val)()
+        MK.fresh({(q: Var): Goal => q == Vl("5")} val)()
       @printf[I32]("%s\n".cstring(), res.string().cstring())
       // Stream((( (#(0) . 5)) . 1))
 
       @printf[I32]("\nSimple === (where it fails)\n".cstring())
       let v1 = Var(0)
-      let state = State(SubstEnv().add(v1, "6"), 1)
-      let res01: Stream[State] = MK.u_u(v1, "5")(state)
+      let state = State(SubstEnv().add(v1, Vl("6")), 1)
+      let res01: Stream[State] = (v1 == Vl("5"))(state)
       @printf[I32]("%s\n".cstring(), res01.string().cstring())
       //Stream()
 
       @printf[I32]("\nConj\n".cstring())
       let res2 =
-        (MK.call_fresh({(q: Var): Goal => MK.u_u(q, "7")} val) and
-          MK.call_fresh(
-            {(q2: Var): Goal => MK.u_u(q2, "5") or MK.u_u(q2, "6")} val)
+        (MK.fresh({(q: Var): Goal => (q == Vl("7"))} val) and
+          MK.fresh(
+            {(q2: Var): Goal => (q2 == Vl("5")) or (q2 == Vl("6"))} val)
         )()
       @printf[I32]("%s\n".cstring(), res2.string().cstring())
       // Stream((( (#(1) . 5) (#(0) . 7)) . 2), (( (#(1) . 6) (#(0) . 7)) . 2))
 
       @printf[I32]("\nDisj\n".cstring())
       let res3 =
-        MK.call_fresh(
+        MK.fresh(
           {(q2: Var): Goal =>
-            MK.u_u(q2, "5") or MK.u_u(q2, "6")
+            (q2 == Vl("5")) or (q2 == Vl("6"))
           } val)()
       @printf[I32]("%s\n".cstring(), res3.string().cstring())
       // Stream((( (#(0) . 5)) . 1), (( (#(0) . 6)) . 1))
 
       @printf[I32]("\nInfinite (take 20)\n".cstring())
-      let res4 = MK.call_fresh(Fives)().take(20)
+      let res4 = MK.fresh(Fives)().take(20)
       @printf[I32]("%s\n".cstring(), res4.string().cstring())
       // Stream((( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1), (( (#(0) . 5)) . 1))
 
       @printf[I32]("\nInifinite (take 20) 2\n".cstring())
-      let fives = Repeater("5")
-      let sixes = Repeater("6")
+      let fives = Repeater(Vl("5"))
+      let sixes = Repeater(Vl("6"))
       let res5 =
-        MK.call_fresh(
+        MK.fresh(
           {(q: Var): Goal =>
             fives(q) or sixes(q)
           } val)().take(20)
@@ -54,10 +54,10 @@ actor Main
 
       @printf[I32]("\nCheck against disj\n".cstring())
       let res6 =
-        MK.call_fresh(
+        MK.fresh(
           {(q: Var): Goal =>
-            MK.u_u(q, "5") and
-            (MK.u_u(q, "6") or MK.u_u(q, "5"))
+            (q == Vl("5")) and
+            ((q == Vl("6")) or (q == Vl("5")))
           } val)()
 
       @printf[I32]("%s\n".cstring(), res6.string().cstring())
@@ -65,9 +65,9 @@ actor Main
 
       @printf[I32]("\nConso\n".cstring())
       let res7 =
-        MK.call_fresh(
+        MK.fresh(
           {(q: Var): Goal =>
-            MK.conso("a", TList("b c"), q)
+            MK.conso(Vl("a"), TList("b c"), q)
           } val)()
 
       @printf[I32]("%s\n".cstring(), res7.string().cstring())
@@ -75,7 +75,7 @@ actor Main
 
       @printf[I32]("\nConso2\n".cstring())
       let res8 =
-        MK.call_fresh(
+        MK.fresh(
           {(q: Var): Goal =>
             MK.conso(q, TList("b c d"), TList("a b c d"))
           } val)()
@@ -95,22 +95,21 @@ actor Main
 
       @printf[I32]("\nRelation\n".cstring())
       let res10 =
-        MK.call_fresh(
+        MK.fresh(
           {(q: Var): Goal =>
-            LocatedIn("Bronx", q)
+            LocatedIn(Vl("Bronx"), q)
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res10.string().cstring())
-      // Stream((( (#(0) . NY)) . 3), (( (#(1) . NY) (#(0) . US)) . 5), (( (#(1) . NY) (#(0) . Earth) (#(3) . US)) . 7))
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify_items(res10).string().cstring())
-      // Reified: Stream(NY, US, Earth)
+      // Reified: Stream(NY, US, Earth, Cosmos)
 
       @printf[I32]("\nRelation2\n".cstring())
       let res11 =
-        MK.call_fresh(
+        MK.fresh(
           {(q: Var): Goal =>
-            LocatedIn(q, "Earth")
+            LocatedIn(q, Vl("Earth"))
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res11.string().cstring())
@@ -121,7 +120,7 @@ actor Main
 
       @printf[I32]("\nAppendo\n".cstring())
       let res12 =
-        MK.call_fresh(
+        MK.fresh(
           {(q1: Var): Goal =>
             MK.appendo(TList("a b"), TList("c d"), q1)
           } val)()
@@ -144,32 +143,14 @@ actor Main
 
       @printf[I32]("\nMembero\n".cstring())
       let res14 =
-        MK.call_fresh(
+        MK.fresh(
           {(q1: Var): Goal =>
-            MK.membero("a", q1)
+            MK.membero(Vl("a"), q1)
           } val)().take(10)
 
       @printf[I32]("%s\n".cstring(), res14.string().cstring())
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify(res14).string().cstring())
-
-      @printf[I32]("\nMatch_listo1\n".cstring())
-      let res15 =
-        MK.call_fresh(
-          {(q1: Var): Goal =>
-            MK.match_listo(TList("a b c d e"), q1)
-          } val)()
-
-      @printf[I32]("Reified: %s\n".cstring(),
-        MK.reify(res15).string().cstring())
-
-
-      @printf[I32]("\nMatch_listo2\n".cstring())
-      let res16 =
-          MK.match_listo(TList("a _ c _ e"), TList("a b c d e"))()
-
-      @printf[I32]("Reified: %s\n".cstring(),
-        MK.reify(res16).string().cstring())
 
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>
@@ -184,7 +165,7 @@ primitive LocatedIn
 
 primitive Fives
   fun apply(x: Var): Goal =>
-    MK.u_u(x, "5") or
+    (x == Vl("5")) or
       object val is Goal
         let x: Var = x
         fun apply(sc: State): Stream[State] =>
@@ -192,13 +173,13 @@ primitive Fives
       end
 
 class val Repeater
-  let _v: String
+  let _v: Vl
 
-  new val create(v: String) =>
+  new val create(v: Vl) =>
     _v = v
 
   fun val apply(x: Var): Goal =>
-    MK.u_u(x, _v) or
+    (x == _v) or
       object val is Goal
         let x: Var = x
         let self: Repeater = this
@@ -206,18 +187,31 @@ class val Repeater
           SDelay[State]({(): Stream[State] => self(x)(sc)} val)
       end
 
-primitive Helpers
-  fun righto(t1: Term, t2: Term, lst: Term): Goal =>
-    MK.fresh3(
-      {(h: Var, tail1: Var, tail2: Var): Goal =>
-        (MK.conso(t1, tail1, lst) and
-          MK.conso(t2, tail2, tail1)) or
-        (MK.conso(h, tail1, lst) and
-          Helpers.righto(t1, t2, tail1))
-      } val)
-
-  fun nexto(t1: Term, t2: Term, lst: Term): Goal =>
-    righto(t1, t2, lst) or righto(t2, t1, lst)
+primitive TList2
+  fun apply(arr: Array[String]): Term =>
+    var n = arr.size()
+    if n == 0 then return TNil() end
+    var l: Term = TNil()
+    try
+      while n > 0 do
+        let next = arr(n - 1)
+        l =
+          if next == "_" then
+            Pair(Vl("_"), l)
+          else
+            Pair(TList(arr(n - 1)), l)
+          end
+        n = n - 1
+      end
+      match l
+      | let p: Pair => p
+      else
+        TNil()
+      end
+    else
+      // This should never happen
+      TNil()
+    end
 
 //////////////////////////
 // Some infinite streams
