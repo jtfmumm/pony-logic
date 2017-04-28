@@ -1,3 +1,4 @@
+use "datast"
 // use "collections"
 // use pers = "collections/persistent"
 
