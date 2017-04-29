@@ -246,6 +246,13 @@ primitive MK
         SDelay[State]({(): Stream[State] => g(s)} val)
     end
 
+  fun softcut(g1: Goal, g2: Goal): Goal =>
+    object val is Goal
+      fun apply(sc: State): Stream[State] =>
+        let first = g1(sc)
+        if first.empty() then g2(sc) else first end
+    end
+
   fun empty_goal(): Goal =>
     object val is Goal
       fun apply(s: State): Stream[State] =>
@@ -356,6 +363,7 @@ trait val Goal
 
   fun val op_or(that: Goal): Goal => MK.disj(this, that)
   fun val op_and(that: Goal): Goal => MK.conj(this, that)
+  fun val op_xor(that: Goal): Goal => MK.softcut(this, that)
 
 type GoalConstructor is {(Var): Goal} val
 type GoalConstructor2 is {(Var, Var): Goal} val
