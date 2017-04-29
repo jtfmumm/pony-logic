@@ -5,6 +5,7 @@ use "datast"
 trait val Term
   // Unification ==
   fun val eq(t: Term): Goal => MK.u_u(this, t)
+  fun val ne(t: Term): Goal => MK.noto(MK.u_u(this, t))
   fun string(): String
 
 class val Vl is Term
@@ -233,18 +234,17 @@ primitive MK
         MK.bind(g1(sc), g2)
     end
 
+  //////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////
+  // Extensions
+  //////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////
   fun delay(g: Goal): Goal =>
     object val is Goal
       let g: Goal = g
       fun apply(s: State): Stream[State] =>
         SDelay[State]({(): Stream[State] => g(s)} val)
     end
-
-  fun conso(a: Term, b: Term, c: Term): Goal =>
-    Pair(a, b) == c
-
-  fun nullo(a: Term): Goal =>
-    (TNil() == a)
 
   fun empty_goal(): Goal =>
     object val is Goal
@@ -260,6 +260,18 @@ primitive MK
 
   fun failure(): Goal =>
     empty_goal()
+
+  fun noto(g: Goal): Goal =>
+    object val is Goal
+      fun apply(s: State): Stream[State] =>
+        if g(s).empty() then MK.success()(s) else MK.failure()(s) end
+    end
+
+  fun conso(a: Term, b: Term, c: Term): Goal =>
+    Pair(a, b) == c
+
+  fun nullo(a: Term): Goal =>
+    (TNil() == a)
 
   fun heado(h: Term, l: Term): Goal =>
     fresh(
@@ -290,20 +302,21 @@ primitive MK
         MK.delay(MK.membero(x, t))
       } val)
 
+  fun reify_success(st: Stream[State]): String =>
+    if st.empty() then "Failure" else "Success" end
+
   fun reify_items(st: Stream[State]): Stream[Term] =>
     Streams[State].map[Term]({(s: State): Term =>
       s.reify(Var(0))} val, st)
 
   fun reify(st: Stream[State]): Stream[String] =>
     Streams[State].map[String]({(s: State): String =>
-      let t = if s.success() then " #t" else "" end
-      "\n[0: " + s.reify(Var(0)).string() + t + "]"} val, st)
+      "\n[0: " + s.reify(Var(0)).string() + "]"} val, st)
 
   fun reify2(st: Stream[State]): Stream[String] =>
     Streams[State].map[String]({(s: State): String =>
-      let t = if s.success() then " #t" else "" end
       "\n[0: " + s.reify(Var(0)).string() + ", 1: " +
-        s.reify(Var(1)).string() + t + "]"} val, st)
+        s.reify(Var(1)).string() + "]"} val, st)
 
   ///////////////////////////////////////////////////////////////////////////
   // Instead of macros, creating different versions of fresh
@@ -348,6 +361,7 @@ type GoalConstructor is {(Var): Goal} val
 type GoalConstructor2 is {(Var, Var): Goal} val
 type GoalConstructor3 is {(Var, Var, Var): Goal} val
 type GoalConstructor4 is {(Var, Var, Var, Var): Goal} val
+type GoalConstructor0 is {(): Goal} val
 
 class val Relation
   let _ts: ReadSeq[(String, String)] val
