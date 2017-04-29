@@ -181,6 +181,74 @@ actor Main
       // Reified: Stream(
       // [0: (b . (w . (c . ())))])
 
+      //////////////
+      // Propo
+      //////////////
+      @printf[I32]("\nPropo\n".cstring())
+      let res15 =
+        Propo.prop_evalo(Fml("a"), Model(["c";"b";"a"]))().take(10)
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify_success(res15).string().cstring())
+      // Reified: Success
+
+      @printf[I32]("\nPropo2\n".cstring())
+      let res16 =
+          Propo.prop_evalo(Fml("not a"), Model(["a";"b"]))().take(10)
+
+      @printf[I32]("Should fail:\n".cstring())
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify_success(res16).string().cstring())
+      // Reified: Failure
+
+      @printf[I32]("\nPropo3\n".cstring())
+      let not_p = Fml("not p")
+      let not_not_p = Formula2(Vl("not"), not_p)
+      let not_not_not_p = Formula2(Vl("not"), not_not_p)
+      let not_not_not_not_p = Formula2(Vl("not"), not_not_not_p)
+      let res17 =
+        Propo.prop_evalo(not_not_not_not_p, Model(["p"]))().take(10)
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify_success(res17).string().cstring())
+      // Reified: Success
+
+      @printf[I32]("\nPropo4\n".cstring())
+      let res18 =
+          Propo.prop_evalo(Fml("a -> b"), Model(["a";"b"]))().take(10)
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify_success(res18).string().cstring())
+      // Reified: Success
+
+      @printf[I32]("\nPropo5\n".cstring())
+      let res19 =
+          Propo.prop_evalo(Fml("a ^ b"), Model(["a";"b"]))().take(10)
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify_success(res19).string().cstring())
+      // Reified: Success
+
+      @printf[I32]("\nPropo6\n".cstring())
+      let res20 =
+          Propo.prop_evalo(Fml("a v b"), Model(["not a";"b"]))().take(10)
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify_success(res20).string().cstring())
+      // Reified: Success
+
+      @printf[I32]("\nPropo7\n".cstring())
+      let res21 =
+        MK.fresh(
+          {(q1: Var): Goal =>
+            Propo.prop_evalo(q1, Model(["a";"b";"not c"]))
+          } val)().take(10)
+
+      @printf[I32]("%s\n".cstring(), res21.string().cstring())
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res21).string().cstring())
+      // Reified: Success
+
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>
     TransitiveRelation(recover [
