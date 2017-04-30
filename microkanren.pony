@@ -238,7 +238,7 @@ primitive MK
     object val is Goal
       fun apply(sc: State): Stream[State] =>
         let first = g1(sc)
-        if first.empty() then g3(sc) else MK.disj(first, g2(sc)) end
+        if first.empty() then g3(sc) else MK.mplus(first, g2(sc)) end
     end
 
   fun empty_goal(): Goal =>

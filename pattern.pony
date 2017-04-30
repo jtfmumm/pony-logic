@@ -14,7 +14,6 @@ class val PList is Pattern
     | let pany: PAny => this
     | let plist: PList => merge(plist._l)
     | let p: Pair =>
-      var still_pattern = false
       var acc = Array[Term]
       var pattern = _l
       var matched = p
@@ -133,18 +132,7 @@ primitive Patterns
     | let pat: Pattern => true
     | let vl: Vl => false
     | let p: Pair =>
-      match (p.fst, p.snd)
-      | (let pat: Pattern, _) => true
-      | (_, let pat: Pattern) => true
-      | (let pair1: Pair, let pair2: Pair) =>
-        Patterns.is_pattern(pair1) or Patterns.is_pattern(pair2)
-      | (let pair: Pair, _) =>
-        Patterns.is_pattern(pair)
-      | (_, let pair: Pair) =>
-        Patterns.is_pattern(pair)
-      else
-        false
-      end
+      is_pattern(p.fst) or is_pattern(p.snd)
     else
       false
     end
