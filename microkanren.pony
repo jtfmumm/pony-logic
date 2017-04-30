@@ -139,7 +139,7 @@ primitive MK
       end
     | (let x: Vl, let y: Vl) if x.valeq(y) =>
       // A hack to record #t
-      s'' + (Var(True.id()), True())
+      ext_s(Var(True.id()), True(), s'')
     | (let p: Pattern, _) =>
       Patterns(p, vw, u, v, s)
     | (_, let p: Pattern) =>

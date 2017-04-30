@@ -66,12 +66,12 @@ primitive Patterns
     try
       match p.merge(m)
       | let t: Term =>
-        var subst_env = s + (Var(True.id()), True())
+        var subst_env = MK.ext_s(Var(True.id()), True(), s)
         match t1
-        | let v: Var => subst_env = subst_env + (v, t)
+        | let v: Var => subst_env = MK.ext_s(v, t, subst_env)
         end
         match t2
-        | let v: Var => subst_env = subst_env + (v, t)
+        | let v: Var => subst_env = MK.ext_s(v, t, subst_env)
         end
         subst_env
       else
