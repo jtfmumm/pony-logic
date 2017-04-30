@@ -125,9 +125,10 @@ actor Main
             MK.appendo(TList("a b"), TList("c d"), q1)
           } val)()
 
-      @printf[I32]("%s\n".cstring(), res12.string().cstring())
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify(res12).string().cstring())
+      // Reified: Stream(
+      // [0: (a . (b . (c . (d . ()))))])
 
       @printf[I32]("\nAppendo\n".cstring())
       let res13 =
@@ -136,10 +137,15 @@ actor Main
             MK.appendo(q1, q2, TList("a b c d e"))
           } val)()
 
-      @printf[I32]("%s\n".cstring(), res13.string().cstring())
-      @printf[I32]("%lu\n".cstring(), res13.size())
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify2(res13).string().cstring())
+      // Reified: Stream(
+      // [0: (), 1: (a . (b . (c . (d . (e . ())))))],
+      // [0: (a . ()), 1: (b . (c . (d . (e . ()))))],
+      // [0: (a . (b . ())), 1: (c . (d . (e . ())))],
+      // [0: (a . (b . (c . ()))), 1: (d . (e . ()))],
+      // [0: (a . (b . (c . (d . ())))), 1: (e . ())],
+      // [0: (a . (b . (c . (d . (e . ()))))), 1: ()])
 
       @printf[I32]("\nMembero\n".cstring())
       let res14 =
@@ -148,9 +154,19 @@ actor Main
             MK.membero(Vl("a"), q1)
           } val)().take(10)
 
-      @printf[I32]("%s\n".cstring(), res14.string().cstring())
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify(res14).string().cstring())
+      // Reified: Stream(
+      // [0: (a . #(1))],
+      // [0: (#(2) . (a . #(3)))],
+      // [0: (#(2) . (#(4) . (a . #(5))))],
+      // [0: (#(2) . (#(4) . (#(6) . (a . #(7)))))],
+      // [0: (#(2) . (#(4) . (#(6) . (#(8) . (a . #(9))))))],
+      // [0: (#(2) . (#(4) . (#(6) . (#(8) . (#(10) . (a . #(11)))))))],
+      // [0: (#(2) . (#(4) . (#(6) . (#(8) . (#(10) . (#(12) . (a . #(13))))))))],
+      // [0: (#(2) . (#(4) . (#(6) . (#(8) . (#(10) . (#(12) . (#(14) . (a . #(15)))))))))],
+      // [0: (#(2) . (#(4) . (#(6) . (#(8) . (#(10) . (#(12) . (#(14) . (#(16) . (a . #(17))))))))))],
+      // [0: (#(2) . (#(4) . (#(6) . (#(8) . (#(10) . (#(12) . (#(14) . (#(16) . (#(18) . (a . #(19)))))))))))])
 
       @printf[I32]("\nPattern\n".cstring())
       let res15 =
@@ -162,6 +178,8 @@ actor Main
 
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify(res15).string().cstring())
+      // Reified: Stream(
+      // [0: (b . (w . (c . ())))])
 
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>
