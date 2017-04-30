@@ -1,7 +1,5 @@
-
 interface val Printable
   fun string(): String
-
 
 type Stream[A: Any val] is (SCons[A] | SNext[A] | SNil[A])
 
