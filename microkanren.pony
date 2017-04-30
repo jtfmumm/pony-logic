@@ -43,6 +43,10 @@ class val Pair is Term
   fun string(): String =>
     "(" + fst.string() + " . " + snd.string() + ")"
 
+// Used for pattern matching
+trait val Pattern is Term
+  fun val merge(t: Term): Term ?
+
 primitive TNil
   fun apply(): Vl => Vl("()")
 
@@ -54,17 +58,23 @@ primitive True
 // e.g. "a b c" is converted into Pair("a", Pair("b", Pair("c", "")))
 primitive TList
   fun apply(str: String): Term =>
-    let arr = str.split(" ")
+    let arr: Array[String] = str.split(" ")
     var n = arr.size()
     if (str == "") or (n == 0) then return TNil() end
     var l: Term = TNil()
     try
       while n > 0 do
-        l = Pair(Vl(arr(n - 1)), l)
+        let next =
+          match arr(n - 1)
+          | "_" => PAny
+          | let s: String => Vl(s)
+          else Vl(arr(n - 1)) end
+        l = Pair(next, l)
         n = n - 1
       end
       match l
-      | let p: Pair => p
+      | let p: Pair =>
+        if str.contains("_") then PList(p) else p end
       else
         TNil()
       end
@@ -137,7 +147,6 @@ primitive MK
           (let snd: Term, let s': SubstEnv) = walk(v2, s)
           (Pair(p.fst, snd), s')
         else (p, s) end
-      // | let vl: Vl if vl.matcher() => (v, s)
       else (s(v), s) end
     else (t, s) end
 
@@ -150,10 +159,8 @@ primitive MK
     match (uw, vw)
     | (let x: Var, let y: Var) if x.valeq(y) =>
       ext_s(Var(True.id()), True(), s'')
-    // | (let x: Var, let vl: Vl) if vl.matcher() => s''
-    | (let x: Var, _) => ext_s(x, v, s'')
-    // | (let vl: Vl, let y: Var) if vl.matcher() => s''
-    | (_, let y: Var) => ext_s(y, u, s'')
+    | (let x: Var, _) => ext_s(x, vw, s'')
+    | (_, let y: Var) => ext_s(y, uw, s'')
     | (let p1: Pair, let p2: Pair) =>
       let ps = unify(p1.fst, p2.fst, s'')
       if ps.empty() then
@@ -161,9 +168,13 @@ primitive MK
       else
         unify(p1.snd, p2.snd, ps)
       end
-    | (let x: Vl, let y: Vl) if x.valeq(y) =>//  or x.matcher() or y.matcher()) =>
+    | (let x: Vl, let y: Vl) if x.valeq(y) =>
       // A hack to record #t
       s'' + (Var(True.id()), True())
+    | (let p: Pattern, _) =>
+      Patterns(p, vw, u, v, s)
+    | (_, let p: Pattern) =>
+      Patterns(p, uw, u, v, s)
     else
       SubstEnv
     end
@@ -174,7 +185,7 @@ primitive MK
   fun unit(s: State): Stream[State] =>
     SCons[State](s, mzero())
 
-  // ===
+  // Unification ==
   fun u_u(u: Term, v: Term): Goal =>
     object val is Goal
       fun apply(sc: State): Stream[State] =>
@@ -309,6 +320,9 @@ primitive MK
         MK.delay(MK.membero(x, t))
       } val)
 
+  /////////////////
+  // Reification
+  /////////////////
   fun reify_success(st: Stream[State]): String =>
     if st.empty() then "Failure" else "Success" end
 
@@ -324,6 +338,33 @@ primitive MK
     Streams[State].map[String]({(s: State): String =>
       "\n[0: " + s.reify(Var(0)).string() + ", 1: " +
         s.reify(Var(1)).string() + "]"} val, st)
+
+  /////////////
+  // Matching
+  /////////////
+  fun match_heado(h: Term, l: Term): Goal =>
+    heado(h, l) or
+    fresh2(
+      {(h2: Var, t: Var): Goal =>
+        MK.conso(h2, t, l) and
+        (h == h2)
+      } val)
+
+  fun match_tailo(t: Term, l: Term): Goal =>
+    tailo(t, l)
+    fresh2(
+      {(h: Var, t2: Var): Goal =>
+        MK.conso(h, t2, l) and
+        (t == t2)
+      } val)
+
+  fun match_membero(x: Term, l: Term): Goal =>
+    MK.match_heado(x, l) or
+    fresh(
+      {(t: Var)(x): Goal =>
+        MK.match_tailo(t, l) and
+        MK.delay(MK.match_membero(x, t))
+      } val)
 
   ///////////////////////////////////////////////////////////////////////////
   // Instead of macros, creating different versions of fresh
@@ -371,6 +412,10 @@ type GoalConstructor3 is {(Var, Var, Var): Goal} val
 type GoalConstructor4 is {(Var, Var, Var, Var): Goal} val
 type GoalConstructor0 is {(): Goal} val
 
+
+////////////////////
+// Relations
+////////////////////
 class val Relation
   let _ts: ReadSeq[(String, String)] val
 

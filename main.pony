@@ -152,6 +152,18 @@ actor Main
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify(res14).string().cstring())
 
+      @printf[I32]("\nPattern\n".cstring())
+      let res15 =
+        MK.fresh(
+          {(q1: Var): Goal =>
+            (q1 == TList("_ w _")) and (q1 == TList("b _ _"))
+              and (q1 == TList("_ _ c"))
+          } val)().take(10)
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res15).string().cstring())
+
+
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>
     TransitiveRelation(recover [
