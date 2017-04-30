@@ -163,7 +163,6 @@ actor Main
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify(res15).string().cstring())
 
-
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>
     TransitiveRelation(recover [
@@ -199,6 +198,20 @@ class val Repeater
           SDelay[State]({(): Stream[State] => self(x)(sc)} val)
       end
 
+primitive Helpers
+  fun righto(t1: Term, t2: Term, lst: Term): Goal =>
+    MK.fresh(
+      {(tail: Var): Goal =>
+          (MK.conso(t1, tail, lst) and
+          MK.heado(t2, tail)) or
+        MK.delay(
+          MK.conso(PAny, tail, lst) and
+          MK.delay((Helpers.righto(t1, t2, tail))))
+      } val)
+
+  fun nexto(t1: Term, t2: Term, lst: Term): Goal =>
+    righto(t1, t2, lst) or righto(t2, t1, lst)
+
 primitive TList2
   fun apply(arr: Array[String]): Term =>
     var n = arr.size()
@@ -206,13 +219,17 @@ primitive TList2
     var l: Term = TNil()
     try
       while n > 0 do
-        let next = arr(n - 1)
-        l =
-          if next == "_" then
-            Pair(Vl("_"), l)
-          else
-            Pair(TList(arr(n - 1)), l)
-          end
+        let next: (PAny | String) =
+          match arr(n - 1)
+          | "_" => PAny
+          | let s: String => s
+          else arr(n - 1) end
+        match next
+        | let p: PAny =>
+          l = Pair(p, l)
+        | let s: String =>
+          l = Pair(TList(s), l)
+        end
         n = n - 1
       end
       match l

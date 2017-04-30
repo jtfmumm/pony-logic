@@ -339,33 +339,6 @@ primitive MK
       "\n[0: " + s.reify(Var(0)).string() + ", 1: " +
         s.reify(Var(1)).string() + "]"} val, st)
 
-  /////////////
-  // Matching
-  /////////////
-  fun match_heado(h: Term, l: Term): Goal =>
-    heado(h, l) or
-    fresh2(
-      {(h2: Var, t: Var): Goal =>
-        MK.conso(h2, t, l) and
-        (h == h2)
-      } val)
-
-  fun match_tailo(t: Term, l: Term): Goal =>
-    tailo(t, l)
-    fresh2(
-      {(h: Var, t2: Var): Goal =>
-        MK.conso(h, t2, l) and
-        (t == t2)
-      } val)
-
-  fun match_membero(x: Term, l: Term): Goal =>
-    MK.match_heado(x, l) or
-    fresh(
-      {(t: Var)(x): Goal =>
-        MK.match_tailo(t, l) and
-        MK.delay(MK.match_membero(x, t))
-      } val)
-
   ///////////////////////////////////////////////////////////////////////////
   // Instead of macros, creating different versions of fresh
   ///////////////////////////////////////////////////////////////////////////

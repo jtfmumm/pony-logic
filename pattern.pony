@@ -43,9 +43,9 @@ class val PList is Pattern
         | (let t1: Term, let y: Pattern) =>
           return Patterns.construct(acc, y.merge(t1))
         | (let v1: Var, let t2: Term) =>
-          return Patterns.construct(acc, t2)
+          return Patterns.construct(acc, v1)
         | (let t1: Term, let v2: Var) =>
-          return Patterns.construct(acc, t1)
+          return Patterns.construct(acc, v2)
         else
           error
         end
