@@ -54,35 +54,6 @@ primitive True
   fun apply(): Vl => Vl("#t")
   fun id(): USize => USize.max_value()
 
-// Mimic lists of terms
-// e.g. "a b c" is converted into Pair("a", Pair("b", Pair("c", "")))
-primitive TList
-  fun apply(str: String): Term =>
-    let arr: Array[String] = str.split(" ")
-    var n = arr.size()
-    if (str == "") or (n == 0) then return TNil() end
-    var l: Term = TNil()
-    try
-      while n > 0 do
-        let next =
-          match arr(n - 1)
-          | "_" => PAny
-          | let s: String => Vl(s)
-          else Vl(arr(n - 1)) end
-        l = Pair(next, l)
-        n = n - 1
-      end
-      match l
-      | let p: Pair =>
-        if str.contains("_") then PList(p) else p end
-      else
-        TNil()
-      end
-    else
-      // This should never happen
-      TNil()
-    end
-
 class val SubstEnv
   let _s: Map[VarKey, Term]
 
@@ -99,7 +70,7 @@ class val SubstEnv
   fun string(): String =>
     var str = ""
     for (v, t) in _s.pairs() do
-      // USize.max_value() is used to record a #t (this is a hack). Don't print
+      // USize.max_value() is used to record a #t (this is a hack).
       if (v.id() == True.id()) then
         str = str + " #t"
       else
@@ -384,6 +355,39 @@ type GoalConstructor2 is {(Var, Var): Goal} val
 type GoalConstructor3 is {(Var, Var, Var): Goal} val
 type GoalConstructor4 is {(Var, Var, Var, Var): Goal} val
 type GoalConstructor0 is {(): Goal} val
+
+////////////////////////
+// List creation API
+////////////////////////
+
+// Mimic lists of terms
+// e.g. "a b c" is converted into Pair("a", Pair("b", Pair("c", "")))
+primitive TList
+  fun apply(str: String): Term =>
+    let arr: Array[String] = str.split(" ")
+    var n = arr.size()
+    if (str == "") or (n == 0) then return TNil() end
+    var l: Term = TNil()
+    try
+      while n > 0 do
+        let next =
+          match arr(n - 1)
+          | "_" => PAny
+          | let s: String => Vl(s)
+          else Vl(arr(n - 1)) end
+        l = Pair(next, l)
+        n = n - 1
+      end
+      match l
+      | let p: Pair =>
+        if str.contains("_") then PList(p) else p end
+      else
+        TNil()
+      end
+    else
+      // This should never happen
+      TNil()
+    end
 
 
 ////////////////////
