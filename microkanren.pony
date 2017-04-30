@@ -226,11 +226,19 @@ primitive MK
         SDelay[State]({(): Stream[State] => g(s)} val)
     end
 
-  fun softcut(g1: Goal, g2: Goal): Goal =>
+  // Not really exclusive or. Tries the second goal only if the first fails.
+  fun xorish(g1: Goal, g2: Goal): Goal =>
     object val is Goal
       fun apply(sc: State): Stream[State] =>
         let first = g1(sc)
         if first.empty() then g2(sc) else first end
+    end
+
+  fun softcut(g1: Goal, g2: Goal, g3: Goal): Goal =>
+    object val is Goal
+      fun apply(sc: State): Stream[State] =>
+        let first = g1(sc)
+        if first.empty() then g3(sc) else MK.disj(first, g2(sc)) end
     end
 
   fun empty_goal(): Goal =>
@@ -347,7 +355,7 @@ trait val Goal
   fun val op_or(that: Goal): Goal => MK.disj(this, that)
   fun val op_and(that: Goal): Goal => MK.conj(this, that)
   // Not really exclusive or: stops as soon as it finds a successful disjunct.
-  fun val op_xor(that: Goal): Goal => MK.softcut(this, that)
+  fun val op_xor(that: Goal): Goal => MK.xorish(this, that)
 
 type GoalConstructor is {(Var): Goal} val
 type GoalConstructor2 is {(Var, Var): Goal} val
