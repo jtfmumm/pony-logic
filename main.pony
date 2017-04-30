@@ -250,8 +250,14 @@ primitive TList2
         end
         n = n - 1
       end
+
       match l
-      | let p: Pair => p
+      | let p: Pair =>
+        var is_pattern = false
+        for s in arr.values() do
+          if s.contains("_") then is_pattern = true end
+        end
+        if is_pattern then PList(p) else p end
       else
         TNil()
       end

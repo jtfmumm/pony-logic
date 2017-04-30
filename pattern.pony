@@ -2,13 +2,13 @@
 // Pattern matching
 /////////////////////
 primitive PAny is Pattern
-  fun string(): String => "Ptn(_)"
+  fun string(): String => "*_*"
   fun val merge(t: Term): Term => t
 
 class val PList is Pattern
   let _l: Pair
   new val create(l: Pair) => _l = l
-  fun string(): String => "Ptn(" + _l.string() + ")"
+  fun string(): String => "*(" + _l.string() + ")*"
   fun val merge(t: Term): Term ? =>
     match t
     | let pany: PAny => this
@@ -20,6 +20,8 @@ class val PList is Pattern
       var matched = p
       while true do
         match (pattern.fst, matched.fst)
+        | (let p1: PAny, let t2: Term) => acc.push(t2)
+        | (let t1: Term, let p2: PAny) => acc.push(t1)
         | (let p1: Pattern, let t2: Term) =>
           acc.push(p1.merge(t2))
         | (let t1: Term, let p2: Pattern) =>
@@ -38,6 +40,10 @@ class val PList is Pattern
         | (let x: Pair, let y: Pair) =>
           pattern = x
           matched = y
+        | (let p1: PAny, let t2: Term) =>
+          return Patterns.construct(acc, t2)
+        | (let t1: Term, let p2: PAny) =>
+          return Patterns.construct(acc, t1)
         | (let x: Pattern, let t2: Term) =>
           return Patterns.construct(acc, x.merge(t2))
         | (let t1: Term, let y: Pattern) =>
