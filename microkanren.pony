@@ -1,6 +1,4 @@
 use "pdata"
-// use "collections"
-// use pers = "collections/persistent"
 
 trait val Term
   // Unification ==
@@ -348,6 +346,7 @@ trait val Goal
 
   fun val op_or(that: Goal): Goal => MK.disj(this, that)
   fun val op_and(that: Goal): Goal => MK.conj(this, that)
+  // Not really exclusive or: stops as soon as it finds a successful disjunct.
   fun val op_xor(that: Goal): Goal => MK.softcut(this, that)
 
 type GoalConstructor is {(Var): Goal} val
@@ -361,7 +360,8 @@ type GoalConstructor0 is {(): Goal} val
 ////////////////////////
 
 // Mimic lists of terms
-// e.g. "a b c" is converted into Pair("a", Pair("b", Pair("c", "")))
+// e.g. TList("a b c") returns Pair("a", Pair("b", Pair("c", TNil()))
+// Supports "_" for matching anything.
 primitive TList
   fun apply(str: String): Term =>
     let arr: Array[String] = str.split(" ")
