@@ -1,6 +1,6 @@
 actor Main
   new create(env: Env) =>
-    @printf[I32]("MicroKanren!\n".cstring())
+    @printf[I32]("pony-logic!\n".cstring())
     run()
 
   fun run() =>
