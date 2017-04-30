@@ -421,6 +421,13 @@ class val TransitiveRelation
         r(t1, t2)
     end)
 
+  new from_relation(r': Relation) =>
+    let r = r'
+    _f = Transitive(object val
+      fun apply(t1: Term, t2: Term): Goal =>
+        r(t1, t2)
+    end)
+
   fun apply(t1: Term, t2: Term): Goal =>
     _f(t1, t2)
 
