@@ -286,7 +286,7 @@ primitive MK
       {(h: Var, t: Var, lst: Var): Goal =>
         MK.conso(h, t, l1) and
         MK.conso(h, lst, result) and
-        MK.appendo(t, l2, lst)
+        MK.delay(MK.appendo(t, l2, lst))
       } val)
 
   fun membero(x: Term, l: Term): Goal =>
