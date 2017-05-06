@@ -181,6 +181,91 @@ actor Main
       // Reified: Stream(
       // [0: (b . (w . (c . ())))])
 
+
+
+
+//Stream((( (#(0) . *((x . (*_* . ())))*)) . 1))
+//Reified: Stream(
+//[0: *((x . (*_* . ())))*])
+
+     @printf[I32]("\nZebra!\n".cstring())
+      let res17 =
+        MK.fresh(
+          {(hs: Var): Goal =>
+            // (hs == TList("_")) and
+            // MK.match_membero(Vl("a"), hs) //and
+
+            // (hs == TList("x _")) and
+            // MK.match_membero(Vl("a"), hs) //and
+
+            // (hs == TList("_ _")) and
+            // MK.match_membero(Vl("a"), hs) and
+            // MK.match_membero(Vl("b"), hs)
+
+            // (hs == TList("_ _")) and
+            // // (hs == TList2(["white black"];["_"])) //and
+            // // (hs == TList2(["_"];["white black"])) and
+            // // (hs == TList2(["_"];["red blue"]))
+            // MK.match_membero(TList("red _"), hs) and
+            // MK.match_membero(TList("_ blue"), hs)
+
+            (hs == TList("_ _")) and
+            MK.match_membero(TList("white _"), hs) and
+            MK.match_membero(TList("red _"), hs) and
+            MK.match_membero(TList("_ black"), hs) and
+            MK.match_membero(TList("_ blue"), hs)
+
+            // (hs == TList2(["_"; "_"; "_ _ milk _ _"; "_"; "_"])) and
+            // MK.match_membero(TList("red englishman _ _ _"), hs) and
+            // MK.match_membero(TList("green _ coffee _ _"), hs) and
+            // MK.match_membero(TList("_ ukrainian tea _ _"), hs) and
+            // MK.match_membero(TList("_ spaniard _ dog _"), hs) and
+            // Helpers.righto(TList("ivory _ _ _ _"), TList("green _ _ _ _"), hs)
+            //  and
+            // MK.match_membero(TList("_ _ _ snails oldgolds"), hs) and
+            // MK.match_membero(TList("yellow _ _ _ kools"), hs) and
+            // MK.match_heado(TList("norwegian _ _ _ _ "), hs) and
+            // Helpers.nexto(TList("_ _ _ fox _"), TList("_ _ _ _ chesterfields"),
+            //   hs) and
+            // Helpers.nexto(TList("_ _ _ horse _"), TList("_ _ _ _ kools"), hs)
+            //   and
+            // MK.match_membero(TList("_ _ oj _ lucky-strikes"), hs) and
+            // MK.match_membero(TList("_ japanese _ _ parliaments"), hs) and
+            // Helpers.righto(TList("norwegian _ _ _ _"),
+            //   TList("_ _ _ _ blue"), hs)
+          } val)().take(1)
+
+      @printf[I32]("%s\n".cstring(), res17.string().cstring())
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify(res17).string().cstring())
+
+// ***
+// #(2): *((*((red . *((*_* . ()))*))* . #(4)))*
+// #(6): *((*((*_* . (blue . ())))* . #(8)))*
+// ***
+
+// #(0): ((white . (black . ())) . #(6))
+// #(1): *((*_* . ()))*
+// #(2): *((*((red . *((*_* . ()))*))* . #(4)))*
+// #(3): *((white . *((*_* . ()))*))*)
+// #(4): ()
+// #(5): *((*_* . ()))*
+// #(6): *((*((*_* . (blue . ())))* . #(8)))*
+// #(7): (white . (black . ()))
+// #(8): ()
+
+// #(0): ((red . (black . ())) . #(6))
+// #(1): *((*((white . *((*_* . ()))*))* . #(3)))*
+// #(2): *((red . *((*_* . ()))*))*
+// #(3): ()
+// #(4): *((*((white . *((*_* . ()))*))* . #(3)))*
+// #(5): *((*((white . *((*_* . ()))*))* . #(3)))*
+// #(6): ((white . (blue . ())) . #(3))
+// #(7): (red . (black . ()))
+// #(8): ()
+
+
 primitive LocatedIn
   fun apply(t1: Term, t2: Term): Goal =>
     TransitiveRelation(recover [
@@ -220,10 +305,10 @@ primitive Helpers
   fun righto(t1: Term, t2: Term, lst: Term): Goal =>
     MK.fresh(
       {(tail: Var): Goal =>
-          (MK.conso(t1, tail, lst) and
-          MK.heado(t2, tail)) or
+          (MK.match_conso(t1, tail, lst) and
+          MK.match_heado(t2, tail)) or
         MK.delay(
-          MK.conso(PAny, tail, lst) and
+          MK.match_conso(PAny, tail, lst) and
           MK.delay((Helpers.righto(t1, t2, tail))))
       } val)
 

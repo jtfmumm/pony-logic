@@ -43,7 +43,8 @@ class val Pair is Term
 
 // Used for pattern matching
 trait val Pattern is Term
-  fun val merge(t: Term): Term ?
+  // fun val merge(t: Term): Term ?
+  fun val merge(t: Term, s: SubstEnv): (Term, SubstEnv) ?
 
 primitive TNil
   fun apply(): Vl => Vl("()")
@@ -125,9 +126,14 @@ primitive MK
   fun unify(u: Term, v: Term, s: SubstEnv): SubstEnv =>
     (let uw: Term, let s': SubstEnv) = walk(u, s)
     (let vw: Term, let s'': SubstEnv) = walk(v, s')
+    @printf[I32]("!!WALKED: %s <-> %s ==>> %s <-> %s\n".cstring(),
+      u.string().cstring(), v.string().cstring(),
+      uw.string().cstring(), vw.string().cstring())
     match (uw, vw)
     | (let x: Var, let y: Var) if x.valeq(y) =>
       ext_s(Var(True.id()), True(), s'')
+    // | (let x: Var, let y: Var) =>
+    //   ext_s(Var(True.id()), True(), s'')
     | (let x: Var, _) => ext_s(x, vw, s'')
     | (_, let y: Var) => ext_s(y, uw, s'')
     | (let p1: Pair, let p2: Pair) =>
@@ -141,8 +147,10 @@ primitive MK
       // A hack to record #t
       ext_s(Var(True.id()), True(), s'')
     | (let p: Pattern, _) =>
+      @printf[I32]("!!Vars: %s <-> %s\n".cstring(), u.string().cstring(), v.string().cstring())
       Patterns(p, vw, u, v, s)
     | (_, let p: Pattern) =>
+      @printf[I32]("!!Vars: %s <-> %s\n".cstring(), u.string().cstring(), v.string().cstring())
       Patterns(p, uw, u, v, s)
     else
       SubstEnv
@@ -263,6 +271,8 @@ primitive MK
     end
 
   fun conso(a: Term, b: Term, c: Term): Goal =>
+    @printf[I32]("Conso!! ---> %s <-> %s\n".cstring(),
+      Pair(a, b).string().cstring(), c.string().cstring())
     Pair(a, b) == c
 
   fun nullo(a: Term): Goal =>
@@ -348,6 +358,143 @@ primitive MK
         let g = f(Var(v_id1), Var(v_id2), Var(v_id3), Var(v_id4))
         g(State(sc.subst_env, v_id4 + 1))
     end
+
+  ////////////////
+  // Matching
+  ////////////////
+
+  fun match_conso(a: Term, b: Term, c: Term): Goal =>
+    @printf[I32]("Conso!! ---> %s <-> %s\n".cstring(),
+      Pair(a, b).string().cstring(), c.string().cstring())
+    object val is Goal
+      let a: Term = a
+      let b: Term = b
+      let c: Term = c
+      // TODO: DRY this tower of awful
+      fun apply(s: State): Stream[State] =>
+        let aw = MK.walk(a, s.subst_env)._1
+        let bw = MK.walk(b, s.subst_env)._1
+        let cw = MK.walk(c, s.subst_env)._1
+        match (aw, bw, cw)
+        | (let p1: Pair, let p2: Pair, let p3: Pair) =>
+          let p1_pat = Patterns.is_pattern(p1)
+          let p2_pat = Patterns.is_pattern(p2)
+          let p3_pat = Patterns.is_pattern(p3)
+          match (p1_pat, p2_pat, p3_pat)
+          | (true, true, true) =>
+            ((a == PList(p1)) and
+             (b == PList(p2)) and
+             (c == PList(p3)) and
+             (Pair(a, b) == c))(s)
+          | (true, true, false) =>
+            ((a == PList(p1)) and
+             (b == PList(p2)) and
+             (Pair(a, b) == c))(s)
+          | (true, false, false) =>
+            ((a == PList(p1)) and
+             (Pair(a, b) == c))(s)
+          | (true, false, true) =>
+            ((a == PList(p1)) and
+             (c == PList(p3)) and
+             (Pair(a, b) == c))(s)
+          | (false, false, true) =>
+            ((c == PList(p3)) and
+             (Pair(a, b) == c))(s)
+          | (false, true, false) =>
+            ((b == PList(p2)) and
+             (Pair(a, b) == c))(s)
+          else (Pair(a, b) == c)(s) end
+        | (let p1: Pair, let p2: Pair, let t3: Term) =>
+          let p1_pat = Patterns.is_pattern(p1)
+          let p2_pat = Patterns.is_pattern(p2)
+          match (p1_pat, p2_pat)
+          | (true, true) =>
+            ((a == PList(p1)) and
+             (b == PList(p2)) and
+             (Pair(a, b) == c))(s)
+          | (true, false) =>
+            ((a == PList(p1)) and
+             (Pair(a, b) == c))(s)
+          | (false, true) =>
+            ((b == PList(p2)) and
+             (Pair(a, b) == c))(s)
+          else (Pair(a, b) == c)(s) end
+        | (let p1: Pair, let t2: Term, let p3: Pair) =>
+          let p1_pat = Patterns.is_pattern(p1)
+          let p3_pat = Patterns.is_pattern(p3)
+          match (p1_pat, p3_pat)
+          | (true, true) =>
+            ((a == PList(p1)) and
+             (c == PList(p3)) and
+             (Pair(a, b) == c))(s)
+          | (true, false) =>
+            ((a == PList(p1)) and
+             (Pair(a, b) == c))(s)
+          | (false, true) =>
+            ((c == PList(p3)) and
+             (Pair(a, b) == c))(s)
+          else (Pair(a, b) == c)(s) end
+        | (let t1: Term, let p2: Pair, let p3: Pair) =>
+          let p2_pat = Patterns.is_pattern(p2)
+          let p3_pat = Patterns.is_pattern(p3)
+          match (p2_pat, p3_pat)
+          | (true, true) =>
+            ((b == PList(p2)) and
+             (c == PList(p3)) and
+             (Pair(a, b) == c))(s)
+          | (true, false) =>
+            ((b == PList(p2)) and
+             (Pair(a, b) == c))(s)
+          | (false, true) =>
+            ((c == PList(p3)) and
+             (Pair(a, b) == c))(s)
+          else (Pair(a, b) == c)(s) end
+        | (let p1: Pair, let t2: Term, let t3: Term) =>
+          if Patterns.is_pattern(p1) then
+            ((a == PList(p1)) and
+            (Pair(a, b) == c))(s)
+          else (Pair(a, b) == c)(s) end
+        | (let t1: Term, let p2: Pair, let t3: Term) =>
+          if Patterns.is_pattern(p2) then
+            ((b == PList(p2)) and
+            (Pair(a, b) == c))(s)
+          else (Pair(a, b) == c)(s) end
+        | (let t1: Term, let t2: Term, let p3: Pair) =>
+          if Patterns.is_pattern(p3) then
+            ((c == PList(p3)) and
+            (Pair(a, b) == c))(s)
+          else (Pair(a, b) == c)(s) end
+        else (Pair(a, b) == c)(s) end
+    end
+
+  fun match_heado(h: Term, l: Term): Goal =>
+    fresh(
+      {(t: Var): Goal =>
+        MK.match_conso(h, t, l)
+      } val)
+
+  fun match_tailo(t: Term, l: Term): Goal =>
+    fresh(
+      {(h: Var): Goal =>
+        MK.match_conso(h, t, l)
+      } val)
+
+  fun match_appendo(l1: Term, l2: Term, result: Term): Goal =>
+    (nullo(l1) and (l2 == result)) or
+    fresh3(
+      {(h: Var, t: Var, lst: Var): Goal =>
+        MK.match_conso(h, t, l1) and
+        MK.match_conso(h, lst, result) and
+        MK.delay(MK.match_appendo(t, l2, lst))
+      } val)
+
+  fun match_membero(x: Term, l: Term): Goal =>
+    MK.match_heado(x, l) or
+    fresh(
+      {(t: Var)(x): Goal =>
+        MK.match_tailo(t, l) and
+        MK.delay(MK.match_membero(x, t))
+      } val)
 
 trait val Goal
   fun apply(state: State = State): Stream[State]
