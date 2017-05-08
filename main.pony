@@ -118,7 +118,16 @@ actor Main
         MK.reify_items(res11).string().cstring())
       // Reified: Stream(WA, NY, Bronx, Seattle)
 
-      @printf[I32]("\nAppendo\n".cstring())
+
+      @printf[I32]("\nDivergo (printing this result would diverge)\n"
+        .cstring())
+      let res666 =
+        MK.fresh2(
+          {(q1: Var, q2: Var): Goal =>
+            MK.divergo()
+          } val)()
+
+      @printf[I32]("\nAppendo1\n".cstring())
       let res12 =
         MK.fresh(
           {(q1: Var): Goal =>
@@ -130,12 +139,12 @@ actor Main
       // Reified: Stream(
       // [0: (a . (b . (c . (d . ()))))])
 
-      @printf[I32]("\nAppendo\n".cstring())
+      @printf[I32]("\nAppendo2\n".cstring())
       let res13 =
         MK.fresh2(
           {(q1: Var, q2: Var): Goal =>
             MK.appendo(q1, q2, TList("a b c d e"))
-          } val)()
+          } val)().take(10)
 
       @printf[I32]("Reified: %s\n".cstring(),
         MK.reify2(res13).string().cstring())
@@ -147,15 +156,25 @@ actor Main
       // [0: (a . (b . (c . (d . ())))), 1: (e . ())],
       // [0: (a . (b . (c . (d . (e . ()))))), 1: ()])
 
-      @printf[I32]("\nMembero\n".cstring())
+      @printf[I32]("\nAppendo3\n".cstring())
       let res14 =
+        MK.fresh2(
+          {(q1: Var, q2: Var): Goal =>
+            MK.appendo(q1, TList("d e"), q2)
+          } val)().take(10)
+
+      @printf[I32]("Reified: %s\n".cstring(),
+        MK.reify2(res14).string().cstring())
+
+      @printf[I32]("\nMembero\n".cstring())
+      let res15 =
         MK.fresh(
           {(q1: Var): Goal =>
             MK.membero(Vl("a"), q1)
           } val)().take(10)
 
       @printf[I32]("Reified: %s\n".cstring(),
-        MK.reify(res14).string().cstring())
+        MK.reify(res15).string().cstring())
       // Reified: Stream(
       // [0: (a . #(1))],
       // [0: (#(2) . (a . #(3)))],
@@ -169,7 +188,7 @@ actor Main
       // [0: (#(2) . (#(4) . (#(6) . (#(8) . (#(10) . (#(12) . (#(14) . (#(16) . (#(18) . (a . #(19)))))))))))])
 
       @printf[I32]("\nPattern\n".cstring())
-      let res15 =
+      let res16 =
         MK.fresh(
           {(q1: Var): Goal =>
             (q1 == TList("_ w _")) and (q1 == TList("b _ _"))
@@ -177,7 +196,7 @@ actor Main
           } val)().take(10)
 
       @printf[I32]("Reified: %s\n".cstring(),
-        MK.reify(res15).string().cstring())
+        MK.reify(res16).string().cstring())
       // Reified: Stream(
       // [0: (b . (w . (c . ())))])
 
